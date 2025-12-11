@@ -7,12 +7,13 @@ import java.util.UUID;
 public class Rol {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY) 
+    @GeneratedValue(strategy = GenerationType.IDENTITY, name = "rol_local_id") 
     private Integer id;
 
     @Column(name = "nombre_rol", nullable = false)
     private String nombre; 
 
+    @Column (name = "descripcion")
     private String descripcion;
 
     @ManyToOne(fetch = FetchType.LAZY) 

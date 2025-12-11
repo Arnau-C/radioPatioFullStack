@@ -7,19 +7,20 @@ import java.util.UUID;
 @Table(name = "comunidades")
 public class Comunidad {
 
-    @Id
+    @Id 
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id")
+    @Column(name = "comunidad_id")
     private UUID id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, name = "nombre")
     private String nombre;
-
-    @Column(nullable = false)
-    private String direccion;
 
     @Column(name = "codigo_invitacion", unique = true)
     private String codigoInvitacion;
+
+    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JoinColumn(name = "comunidad_id") 
+    private List<Usuario> vecinos = new ArrayList<>();
 
 
     public UUID getId() {
@@ -36,14 +37,6 @@ public class Comunidad {
 
     public void setNombre(String nombre) {
         this.nombre = nombre;
-    }
-
-    public String getDireccion() {
-        return direccion;
-    }
-
-    public void setDireccion(String direccion) {
-        this.direccion = direccion;
     }
 
     public String getCodigoInvitacion() {

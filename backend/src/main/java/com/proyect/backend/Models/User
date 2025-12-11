@@ -11,24 +11,21 @@ public class Usuario {
     @Column(name = "usuario_id")
     private String usuarioId;
 
-    @Column
+    @Column (name = "nombre")
     private String nombre;
 
-    @Column
+    @Column (name = "apellido")
     private String apellido;
     
-    @Column(unique = true)
+    @Column(unique = true, name = "email")
     private String email;
     
-    @Column
+    @Column (name = "contrasena")
     private String contrasena;
     
-    @Column
+    @Column (name = "nacimiento")
     private LocalDate nacimiento; 
 
-
-
-   
     @Column(name = "rol_global")
     private String rolGlobal; 
 
