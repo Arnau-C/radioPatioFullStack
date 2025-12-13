@@ -1,0 +1,44 @@
+package com.proyect.backend.service;
+import com.proyect.backend.model.Usuario;
+import com.proyect.backend.repository.UsuarioRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+@Service // Indica que contiene lógica de negocio [11]
+public class UsuarioService {
+
+    @Autowired
+    private
+
+    @Autowired UsuarioRepository usuarioRepository;
+    private PasswordEncoder passwordEncoder; // Inyección para encriptar [12]
+
+    public Usuario registrarUsuario(Usuario usuario) {
+        //Validacion de id
+        if (usuarioRepository.existsById(usuario.getUsername())) {
+            throw new RuntimeException("El nombre de usuario ya exsiste.");
+        }
+
+        // Validacion de email (si ya exsiste simplemente)
+        if (usuarioRepository.existsByEmail(usuario.getEmail())) {
+            throw new RuntimeException("El correo electrónico ya está registrado.");
+        }
+
+        // Encriptar la contraseña (¡Nunca guardar en texto plano!) 
+        usuario.setPassword(passwordEncoder.encode(usuario.getPassword()));
+
+        // Asignar valores por defecto según tu modelo (esto es el recuento de intentos y bloqueo)
+        usuario.setIntentosFallidos(0);
+        usuario.setCuentaBloqueada(false);
+        
+        // Asignar rol por defecto si no viene
+        if (usuario.getRol() == null || usuario.getRol().isEmpty()) {
+            usuario.setRol("USER"); //Usuario por defecto
+        }
+
+        //  Guardar en la base de datos 
+        return usuarioRepository.save(usuario);
+    }
+}
+

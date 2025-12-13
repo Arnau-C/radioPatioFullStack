@@ -9,6 +9,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+    # Fíjate que 'http' está pegado al mismo margen que 'flutter'
+  http: ^1.2.0
+
+  # Es probable que también tengas esto debajo (déjalo como está)
+  cupertino_icons: ^1.0.2
+    
+
 
 dev_dependencies:
   flutter_test:
