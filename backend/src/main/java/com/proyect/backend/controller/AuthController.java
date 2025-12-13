@@ -28,7 +28,6 @@ public class AuthController {
                 return ResponseEntity.badRequest().body("Faltan datos obligatorios");
             }
 
-            // 1. COMPROBAR USUARIO (Usamos existsById porque username ES el ID)
             if (usuarioRepository.existsById(usuario.getUsername())) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body("Error: El usuario ya existe");
             }
