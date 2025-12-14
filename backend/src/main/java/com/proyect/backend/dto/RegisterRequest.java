@@ -5,13 +5,16 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-//Son los datos que recibiremos al hacer login.
+//Son los datos que recibiremos al registrar un nuevo usuario.
 
 @Data
 @Builder
-@AllArgsConstructor
 @NoArgsConstructor
-public class LoginRequest {
+@AllArgsConstructor
+public class RegisterRequest {
     private String username;
     private String password;
+    private String nombre;
+    private String apellidos;
+    private String email;
 }

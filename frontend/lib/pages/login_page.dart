@@ -1,18 +1,91 @@
+import 'dart:convert'; // 1. Para convertir datos a JSON
 import 'package:flutter/material.dart';
 import 'package:frontend/components/button.dart';
 import 'package:frontend/components/textfield.dart';
-import 'package:frontend/pages/register_page.dart'; // Asegúrate de importar tu página de registro
+import 'package:frontend/pages/register_page.dart';
+import 'package:http/http.dart' as http; // 2. Para hacer peticiones al Backend
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
 
-class LoginPage extends StatelessWidget {
-  LoginPage({super.key});
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
 
+class _LoginPageState extends State<LoginPage> {
   // 1. Controladores de texto para capturar los datos
   final usernameController = TextEditingController();
   final passwordController = TextEditingController();
 
-  // 2. Método de inicio de sesión (lo conectaremos a Spring Boot luego)
-  void signUserIn() {
-    print("Iniciando sesión con: ${usernameController.text}");
+  final storage = const FlutterSecureStorage();
+
+  void signUserIn() async {
+    // A) Mostramos círculo de carga
+    showDialog(
+      context: context,
+      builder: (context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
+    final String url = 'http://localhost:8080/api/auth/login'; // URL del backend (ajustada para emulador linux)
+    
+    try {
+      // C) Enviamos la petición POST
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': usernameController.text,
+          'password': passwordController.text,
+        }),
+      );
+
+      // D) Quitamos el círculo de carga (si el widget sigue activo)
+      if (mounted) Navigator.pop(context);
+
+      // E) Comprobamos la respuesta
+      if (response.statusCode == 200) {
+        // --- ÉXITO ---
+        final jsonResponse = jsonDecode(response.body);
+        String token = jsonResponse['token'];
+
+        // F) Guardamos el Token en la caja fuerte
+        await storage.write(key: 'jwt_token', value: token);
+        print("Token guardado: $token");
+
+        // Mensaje de éxito
+        mostrarMensaje("¡Login Correcto!", esError: false);
+
+        // AQUÍ IRÍA LA NAVEGACIÓN A LA HOME PAGE:
+        // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomePage()));
+
+      } else {
+        // --- ERROR (Credenciales malas) ---
+        mostrarMensaje("Usuario o contraseña incorrectos", esError: true);
+      }
+    } catch (e) {
+      // --- ERROR DE CONEXIÓN ---
+      if (mounted) Navigator.pop(context);
+      mostrarMensaje("No se pudo conectar con el servidor", esError: true);
+      print("Error técnico: $e");
+    }
+  }
+  void mostrarMensaje(String mensaje, {bool esError = true}) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: esError ? Colors.red.shade400 : Colors.green.shade400,
+          title: Center(
+            child: Text(
+              mensaje,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override

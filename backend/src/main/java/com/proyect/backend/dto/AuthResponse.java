@@ -5,13 +5,12 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-//Son los datos que recibiremos al hacer login.
+//Respuesta que enviamos tras un login exitoso, con el token JWT.
 
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class LoginRequest {
-    private String username;
-    private String password;
+public class AuthResponse {
+    private String token;
 }

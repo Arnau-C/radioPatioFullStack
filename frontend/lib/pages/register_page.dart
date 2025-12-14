@@ -1,8 +1,10 @@
-import 'dart:convert'; // [1] Necesario para convertir el mapa a JSON
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:frontend/components/button.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+//import 'package:frontend/components/button.dart';
 import 'package:frontend/components/textfield.dart';
-import 'package:http/http.dart' as http; // [2] Librería para peticiones HTTP
+import 'package:frontend/pages/login_page.dart';
+import 'package:http/http.dart' as http;
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -12,16 +14,23 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  // Controladores de texto
+  // 1. CONTROLADORES (Ajustados a tu modelo Usuario.java)
+  final nombreController = TextEditingController();    // Antes firstname
+  final apellidosController = TextEditingController(); // Antes lastname
+  final emailController = TextEditingController();     // ¡ESTE ES EL IMPORTANTE!
   final usernameController = TextEditingController();
   final passwordController = TextEditingController();
-  final nombreController = TextEditingController();
-  final apellidosController = TextEditingController();
-  final emailController = TextEditingController();
+  final confirmPasswordController = TextEditingController();
 
-  // Método para registrar al usuario
-  void registerUser() async {
-    // 1. Mostrar círculo de carga para feedback visual
+  final storage = const FlutterSecureStorage();
+  
+  void signUserUp() async {
+    // Validar contraseñas
+    if (passwordController.text != confirmPasswordController.text) {
+      mostrarMensaje("Las contraseñas no coinciden", esError: true);
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (context) {
@@ -29,66 +38,62 @@ class _RegisterPageState extends State<RegisterPage> {
       },
     );
 
-    // 2. Preparar la URL
-    // NOTA PARA EL EQUIPO:
-    // - Tú en Linux usa: 'http://localhost:8080/api/auth/registro'
-    // - Tus compañeros en Emulador Android deben usar: 'http://10.0.2.2:8080/api/auth/registro'
-    final url = Uri.parse('http://localhost:8080/api/auth/registro');
-
-    // 3. Crear el Mapa de datos (JSON Object)
-    // Las claves (izq) deben ser IDÉNTICAS a los atributos de tu clase Java 'Usuario' [3]
-    final Map<String, dynamic> datosUsuario = {
-      "username": usernameController.text,
-      "password": passwordController.text,
-      "nombre": nombreController.text,
-      "apellidos": apellidosController.text,
-      "email": emailController.text,
-      "rol": "USER", // Asignamos un rol por defecto
-      "intentosFallidos": 0,
-      "cuentaBloqueada": false,
-    };
+    // URL (Recuerda: 10.0.2.2 para emulador, localhost para web)
+    final url = Uri.parse('http://localhost:8080/api/auth/registro'); 
 
     try {
-      // 4. Enviar la petición POST
+      // 2. EL JSON EXACTO (Coincidiendo con tus campos Java)
+      final body = jsonEncode({
+        'nombre': nombreController.text,       // Java: private String nombre;
+        'apellidos': apellidosController.text, // Java: private String apellidos;
+        'email': emailController.text,         // Java: private String email;
+        'username': usernameController.text,   // Java: private String username;
+        'password': passwordController.text,   // Java: private String password;
+      });
+
       final response = await http.post(
         url,
-        // Es VITAL especificar que enviamos JSON, si no Spring Boot lo rechaza [4]
-        headers: {"Content-Type": "application/json"},
-        // Convertimos el mapa de Dart a un String JSON
-        body: jsonEncode(datosUsuario),
+        headers: {'Content-Type': 'application/json'},
+        body: body,
       );
 
-      // Cerrar el círculo de carga
       if (mounted) Navigator.pop(context);
 
-      // 5. Manejar la respuesta del servidor [5]
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        // Éxito: 201 Created es lo ideal
-        mostrarMensaje("¡Usuario creado con éxito!");
+      if (response.statusCode == 200) {
+        // ÉXITO
+        final jsonResponse = jsonDecode(response.body);
+        String token = jsonResponse['token'];
+        await storage.write(key: 'jwt_token', value: token);
+        mostrarMensaje("¡Cuenta creada con éxito!", esError: false);
+        
+        // Opcional: Ir al Home
+        // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomePage()));
       } else {
-        // Error: Puede ser 409 (Conflicto/Ya existe) o 400 (Bad Request)
-        mostrarMensaje("Error ${response.statusCode}: ${response.body}");
+        // ERROR
+        debugPrint("CÓDIGO DE ERROR: ${response.statusCode}"); // <--- Esto saldrá en la consola
+        print("CUERPO DEL ERROR: ${response.body}");       // <--- Esto saldrá en la consola
+        mostrarMensaje("Error ${response.statusCode}: ${response.body}", esError: true);
       }
     } catch (e) {
-      // Error de conexión (aquí caeremos si falta CORS o el server está apagado)
       if (mounted) Navigator.pop(context);
-      mostrarMensaje("Error de conexión: $e");
+      mostrarMensaje("Error de conexión", esError: true);
+      print("Error: $e");
     }
   }
 
-  // Método auxiliar para mostrar alertas
-  void mostrarMensaje(String mensaje) {
+  void mostrarMensaje(String mensaje, {bool esError = true}) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text(mensaje),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("OK"),
+          backgroundColor: esError ? Colors.red.shade400 : Colors.green.shade400,
+          title: Center(
+            child: Text(
+              mensaje,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              textAlign: TextAlign.center,
             ),
-          ],
+          ),
         );
       },
     );
@@ -105,72 +110,81 @@ class _RegisterPageState extends State<RegisterPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const SizedBox(height: 25),
-                // Logo
                 Image.asset('lib/images/logo.png', width: 100, height: 100),
                 const SizedBox(height: 25),
 
-                Text(
+                const Text(
                   'Crear Cuenta',
                   style: TextStyle(
-                    color: const Color.fromARGB(255, 0, 30, 53),
+                    color: Color.fromARGB(255, 0, 30, 53),
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 25),
 
-                // Campos de texto (Usando tu componente MyTextField actualizado)
-                MyTextField(
-                  controller: nombreController,
-                  hintText: 'Nombre',
-                  obscureText: false,
-                ),
+                // --- FORMULARIO AJUSTADO ---
+                
+                // 1. Nombre
+                MyTextField(controller: nombreController, hintText: 'Nombre', obscureText: false),
                 const SizedBox(height: 10),
-                MyTextField(
-                  controller: apellidosController,
-                  hintText: 'Apellidos',
-                  obscureText: false,
-                ),
+                
+                // 2. Apellidos
+                MyTextField(controller: apellidosController, hintText: 'Apellidos', obscureText: false),
                 const SizedBox(height: 10),
-                MyTextField(
-                  controller: emailController,
-                  hintText: 'Email',
-                  obscureText: false,
-                ),
+                
+                // 3. Email (Fundamental según tu Usuario.java)
+                MyTextField(controller: emailController, hintText: 'Email', obscureText: false),
                 const SizedBox(height: 10),
-                MyTextField(
-                  controller: usernameController,
-                  hintText: 'Usuario',
-                  obscureText: false,
-                ),
+                
+                // 4. Username (ID)
+                MyTextField(controller: usernameController, hintText: 'Nombre de usuario', obscureText: false),
                 const SizedBox(height: 10),
-                MyTextField(
-                  controller: passwordController,
-                  hintText: 'Contraseña',
-                  obscureText: true,
-                ),
+                
+                // 5. Password
+                MyTextField(controller: passwordController, hintText: 'Contraseña', obscureText: true),
+                const SizedBox(height: 10),
+
+                // 6. Confirmar Password
+                MyTextField(controller: confirmPasswordController, hintText: 'Confirmar Contraseña', obscureText: true),
 
                 const SizedBox(height: 25),
 
-                // Botón de registro
-                MyButton(
-                  onTap: registerUser, // Conectamos el botón a la función
-                ),
-
-                const SizedBox(height: 25),
-
-                // Botón para volver al Login
+                // Botón
                 GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: const Text(
-                    'Volver al Login',
-                    style: TextStyle(
-                      color: Color.fromARGB(255, 0, 30, 53),
-                      fontWeight: FontWeight.bold,
+                    onTap: signUserUp,
+                    child: Container(
+                      padding: const EdgeInsets.all(25),
+                      margin: const EdgeInsets.symmetric(horizontal: 25),
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Center(
+                        child: Text("Registrarse", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                      ),
                     ),
+                ),
+
+                const SizedBox(height: 30),
+
+                // Volver al Login
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text('¿Ya tienes cuenta?', style: TextStyle(color: Colors.grey)),
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginPage()));
+                        },
+                        child: const Text('Inicia sesión', style: TextStyle(color: Color.fromARGB(255, 0, 30, 53), fontWeight: FontWeight.bold)),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 20),
               ],
             ),
           ),

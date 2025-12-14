@@ -1,19 +1,33 @@
 package com.proyect.backend.model;
 
 
-import jakarta.persistence.*;
+import java.util.Collection;
+import java.util.List;
+
+//import org.apache.catalina.User;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+
+//import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data; // <--- IMPORTANTE
+import lombok.NoArgsConstructor;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
+//import jakarta.persistence.GeneratedValue;
+//import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 @Data 
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity
 @Table(name = "users")
-public class Usuario {
+public class Usuario implements UserDetails{
     
     //Primary Key & varchar(50)
     @Id
@@ -34,4 +48,41 @@ public class Usuario {
     private int intentosFallidos = 0; // Para contar los errores de login.
 
     private boolean cuentaBloqueada = false; // Para saber si está bloqueado.
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority(rol));
+    }
+    @Override
+    public String getPassword() {
+        return password;
+    }
+
+    @Override
+    public String getUsername() {
+        return username;
+    }
+
+    // Estas 4 preguntas controlan si el usuario puede entrar.
+    // Como tú ya tienes campos para bloquear, los usamos aquí:
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true; // La cuenta nunca caduca (a menos que tú quieras)
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return !cuentaBloqueada; // Si NO está bloqueada, devuelve true (puede entrar)
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true; // La contraseña no caduca
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true; // El usuario está habilitado
+    }
 }
