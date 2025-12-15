@@ -22,7 +22,7 @@ public class AuthController {
     public ResponseEntity<?> registrarUsuario(@RequestBody Usuario usuario) {
         try {
             // Validaciones básicas
-            if (usuario.getUsername() == null || usuario.getUsername().isEmpty() ||
+            if (usuario.getUsername() == null || usuario.getUsername().isEmpty() ||                 
                 usuario.getPassword() == null || usuario.getPassword().isEmpty() ||
                 usuario.getEmail() == null || usuario.getEmail().isEmpty()) {
                 return ResponseEntity.badRequest().body("Faltan datos obligatorios");
@@ -53,4 +53,23 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error: " + e.getMessage());
         }
     }
-}
+
+    @DeleteMapping("/borrar/{username}") // ESTO ES LO QUE HAY QUE MERGEAR ERIC
+    public ResponseEntity<?> eliminarUsuarioDeEmergencia(@PathVariable String username) {
+        
+
+        try {
+            if (!usuarioRepository.existsById(username)) {
+                System.out.println("No encuentro a: " + username);
+                return ResponseEntity.notFound().build();
+            }
+
+            usuarioRepository.deleteById(username);
+            System.out.println("Borrando a: " + username);
+            return ResponseEntity.ok("Usuario eliminado correctamente");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Error: " + e.getMessage());
+        }
+    }
+
+} 
