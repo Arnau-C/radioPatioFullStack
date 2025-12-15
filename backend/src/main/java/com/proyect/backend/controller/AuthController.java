@@ -38,4 +38,30 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
     }
+   @org.springframework.web.bind.annotation.DeleteMapping("/borrar/{username}")
+    public ResponseEntity<?> eliminarUsuario(@org.springframework.web.bind.annotation.PathVariable String username) {
+        try {
+            // Enviamos el nombre "goat"
+            authService.eliminarUsuario(username);
+            
+            return ResponseEntity.ok("Usuario " + username + " eliminado correctamente");
+        } catch (Exception e) {
+            return ResponseEntity.status(404).body("Error: " + e.getMessage());
+        }
+    }
+    @org.springframework.web.bind.annotation.PutMapping("/modificar/{username}")
+    public ResponseEntity<?> modificarUsuario(
+            @org.springframework.web.bind.annotation.PathVariable String username,
+            @org.springframework.web.bind.annotation.RequestBody com.proyect.backend.dto.RegisterRequest request) { // Usamos RegisterRequest para no crear líos con DTOs nuevos
+        
+        try {
+            // Llamamos a la función de actualizar que YA EXISTE en el servicio
+            authService.actualizarUsuario(username, request);
+            
+            return ResponseEntity.ok("Usuario modificado con éxito");
+        } catch (Exception e) {
+            return ResponseEntity.status(404).body("Error al modificar: " + e.getMessage());
+        }
+    }
+
 }

@@ -12,18 +12,15 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-
-// Esta clase es el Cerebro de la Autenticación: maneja el registro y login de usuarios.
-
 @Service
 @RequiredArgsConstructor
-public class AuthService{
+public class AuthService {
     private final UsuarioRepository repository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     
-    // --- MÉTODO DE REGISTRO (COCINAR UN USUARIO NUEVO) ---
+    // --- MÉTODO DE REGISTRO ---
     public AuthResponse register(RegisterRequest request) {
         
         if(repository.existsByUsername(request.getUsername())){
@@ -32,13 +29,14 @@ public class AuthService{
         if(repository.existsByEmail(request.getEmail())){
             throw new IllegalArgumentException("El email ya está registrado");
         }
+        
         var user = Usuario.builder()
             .username(request.getUsername())
-            .password(passwordEncoder.encode(request.getPassword())) // ¡IMPORTANTE! Encriptamos la contraseña aquí
+            .password(passwordEncoder.encode(request.getPassword()))
             .email(request.getEmail())
             .nombre(request.getNombre())
             .apellidos(request.getApellidos())
-            .rol("USER") // Asignamos el rol por defecto. El usuario no lo elige.
+            .rol("USER") 
             .cuentaBloqueada(false)
             .intentosFallidos(0)
             .build();
@@ -47,11 +45,18 @@ public class AuthService{
 
         var jwtToken = jwtService.generateToken(user);
 
+        // 👇 AQUI ESTÁ EL CAMBIO: Devolvemos todos los datos, no solo el token
         return AuthResponse.builder()
                 .token(jwtToken)
+                .username(user.getUsername()) // <--- AÑADIDO
+                .nombre(user.getNombre())     // <--- AÑADIDO
+                .apellidos(user.getApellidos()) // <--- AÑADIDO
+                .email(user.getEmail())       // <--- AÑADIDO
+                .rol(user.getRol())           // <--- AÑADIDO
                 .build();
     }
     
+    // --- MÉTODO DE LOGIN ---
     public AuthResponse login(LoginRequest request){
         authenticationManager.authenticate(
             new UsernamePasswordAuthenticationToken(
@@ -60,33 +65,39 @@ public class AuthService{
                 )
         );
 
-        Usuario user = repository.findByUsername(request.getUsername()).orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado"));
+        Usuario user = repository.findByUsername(request.getUsername())
+                .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado"));
         
-        // 3. Generamos un nuevo Token fresco para él
         var jwtToken = jwtService.generateToken(user);
 
-        // 4. Se lo devolvemos
+        // 👇 AQUI ESTÁ EL CAMBIO: Rellenamos los datos para Flutter
         return AuthResponse.builder()
                 .token(jwtToken)
+                .username(user.getUsername()) // <--- AÑADIDO
+                .nombre(user.getNombre())     // <--- AÑADIDO
+                .apellidos(user.getApellidos()) // <--- AÑADIDO
+                .email(user.getEmail())       // <--- AÑADIDO
+                .rol(user.getRol())           // <--- AÑADIDO
                 .build();
     }
-    // --- 3. ELIMINAR USUARIO (Fusión) ---
+
+    // --- 3. ELIMINAR USUARIO (Versión Puente: String -> ID) ---
     public void eliminarUsuario(String username) {
-        if (!repository.existsByUsername(username)) { 
-             // Usamos RuntimeException genérica
-             throw new RuntimeException("No se puede borrar: El usuario no existe");
-        }
-        repository.deleteById(username); 
+        Usuario user = repository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("No se puede borrar: El usuario no existe"));
+        
+        repository.delete(user);
     }
 
-    // --- 4. ACTUALIZAR USUARIO (Fusión) ---
+    // --- 4. ACTUALIZAR USUARIO ---
+    // Nota: Aquí lo ideal sería usar UpdateUserRequest, pero si usas RegisterRequest funciona igual
     public Usuario actualizarUsuario(String username, RegisterRequest request) {
         Usuario user = repository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado para editar"));
 
-        user.setNombre(request.getNombre());
-        user.setApellidos(request.getApellidos());
-        user.setEmail(request.getEmail());
+        if (request.getNombre() != null) user.setNombre(request.getNombre());
+        if (request.getApellidos() != null) user.setApellidos(request.getApellidos());
+        if (request.getEmail() != null) user.setEmail(request.getEmail());
 
         return repository.save(user);
     }
