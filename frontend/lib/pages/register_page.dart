@@ -68,16 +68,28 @@ class _RegisterPageState extends State<RegisterPage> {
         
         // Opcional: Ir al Home
         // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomePage()));
+        
       } else {
         // ERROR
-        debugPrint("CÓDIGO DE ERROR: ${response.statusCode}"); // <--- Esto saldrá en la consola
-        print("CUERPO DEL ERROR: ${response.body}");       // <--- Esto saldrá en la consola
-        mostrarMensaje("Error ${response.statusCode}: ${response.body}", esError: true);
+        String muestraMensajeUsuario = "Error desconocido (${response.statusCode})";
+        try {
+        final errorJson = jsonDecode(response.body);
+
+        if(errorJson is Map && errorJson.containsKey('message')) {
+          muestraMensajeUsuario = errorJson['message'];
+        }
+        else if(response.body.isNotEmpty){
+          muestraMensajeUsuario = response.body;
+        }
+      } catch (e) {
+      muestraMensajeUsuario = "Error de conexión (${response.statusCode})";
+      }
+        mostrarMensaje(muestraMensajeUsuario, esError: true);
       }
     } catch (e) {
       if (mounted) Navigator.pop(context);
-      mostrarMensaje("Error de conexión", esError: true);
-      print("Error: $e");
+      mostrarMensaje("No se pudo conectar con el servidor", esError: true);
+      print("Error técnico: $e");
     }
   }
 

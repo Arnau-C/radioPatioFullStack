@@ -16,6 +16,9 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+
+//Aquí configuramos las reglas de seguridad: qué rutas son públicas, cuáles privadas, activamos CORS, desactivamos CSRF, y añadimos el filtro JWT.
+
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor

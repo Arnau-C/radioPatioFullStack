@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-//Son los datos que recibiremos al registrar un nuevo usuario.
+//Son los datos que recibiremos al registrar un nuevo usuario desde el frontend.
 
 @Data
 @Builder

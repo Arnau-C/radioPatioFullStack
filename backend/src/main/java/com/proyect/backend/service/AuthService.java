@@ -12,6 +12,9 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+
+// Esta clase es el Cerebro de la Autenticación: maneja el registro y login de usuarios.
+
 @Service
 @RequiredArgsConstructor
 public class AuthService{
@@ -22,6 +25,13 @@ public class AuthService{
     
     // --- MÉTODO DE REGISTRO (COCINAR UN USUARIO NUEVO) ---
     public AuthResponse register(RegisterRequest request) {
+        
+        if(repository.existsByUsername(request.getUsername())){
+            throw new IllegalArgumentException("El nombre de usuario ya existe");
+        }
+        if(repository.existsByEmail(request.getEmail())){
+            throw new IllegalArgumentException("El email ya está registrado");
+        }
         var user = Usuario.builder()
             .username(request.getUsername())
             .password(passwordEncoder.encode(request.getPassword())) // ¡IMPORTANTE! Encriptamos la contraseña aquí
@@ -36,7 +46,7 @@ public class AuthService{
         repository.save(user);
 
         var jwtToken = jwtService.generateToken(user);
-        
+
         return AuthResponse.builder()
                 .token(jwtToken)
                 .build();
@@ -59,5 +69,25 @@ public class AuthService{
         return AuthResponse.builder()
                 .token(jwtToken)
                 .build();
+    }
+    // --- 3. ELIMINAR USUARIO (Fusión) ---
+    public void eliminarUsuario(String username) {
+        if (!repository.existsByUsername(username)) { 
+             // Usamos RuntimeException genérica
+             throw new RuntimeException("No se puede borrar: El usuario no existe");
+        }
+        repository.deleteById(username); 
+    }
+
+    // --- 4. ACTUALIZAR USUARIO (Fusión) ---
+    public Usuario actualizarUsuario(String username, RegisterRequest request) {
+        Usuario user = repository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado para editar"));
+
+        user.setNombre(request.getNombre());
+        user.setApellidos(request.getApellidos());
+        user.setEmail(request.getEmail());
+
+        return repository.save(user);
     }
 }
