@@ -8,6 +8,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.proyect.backend.service.AuthService;
+
+import jakarta.validation.Valid;
+
 import com.proyect.backend.dto.LoginRequest; 
 import com.proyect.backend.dto.RegisterRequest; 
 import com.proyect.backend.dto.AuthResponse;
@@ -26,7 +29,7 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/registro")
-    public ResponseEntity<AuthResponse> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         // El servicio se encarga de:
         // 1. Crear el usuario
         // 2. Encriptar contraseña

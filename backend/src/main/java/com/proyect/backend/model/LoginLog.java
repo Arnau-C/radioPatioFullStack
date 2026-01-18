@@ -12,6 +12,7 @@ import jakarta.persistence.Table;
 //import jakarta.persistence.*;
 import lombok.Data; // <--- IMPORTANTE
 
+// Esta clase representa un log de intentos de login (éxitos y fallos).
 @Data
 @Entity
 @Table(name = "login_logs")

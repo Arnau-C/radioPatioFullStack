@@ -5,18 +5,27 @@ import 'package:http/http.dart' as http;
 class EditUser extends StatefulWidget {
   final Map<String, dynamic> userData;
 
-  const EditUser({super.key, required this.userData});
+  const EditUser({
+    super.key,
+    required this.userData,
+  });
 
   @override
-  State<EditUser> createState() => _EditUserState();
+  State<EditUser> createState() =>
+      _EditUserState();
 }
 
-class _EditUserState extends State<EditUser> {
+class _EditUserState
+    extends State<EditUser> {
   // Controladores de texto
-  late TextEditingController _userController;
-  late TextEditingController _nombreController;
-  late TextEditingController _apellidosController;
-  late TextEditingController _emailController;
+  late TextEditingController
+  _userController;
+  late TextEditingController
+  _nombreController;
+  late TextEditingController
+  _apellidosController;
+  late TextEditingController
+  _emailController;
 
   bool _isSaving = false;
 
@@ -24,44 +33,79 @@ class _EditUserState extends State<EditUser> {
   void initState() {
     super.initState();
     // Cargamos los datos actuales en las cajas
-    _userController = TextEditingController(text: widget.userData['username']);
-    _nombreController = TextEditingController(
-      text: widget.userData['nombre'] ?? "",
-    );
-    _apellidosController = TextEditingController(
-      text: widget.userData['apellidos'] ?? "",
-    );
-    _emailController = TextEditingController(
-      text: widget.userData['email'] ?? "",
-    );
+    _userController =
+        TextEditingController(
+          text: widget
+              .userData['username'],
+        );
+    _nombreController =
+        TextEditingController(
+          text:
+              widget
+                  .userData['nombre'] ??
+              "",
+        );
+    _apellidosController =
+        TextEditingController(
+          text:
+              widget
+                  .userData['apellidos'] ??
+              "",
+        );
+    _emailController =
+        TextEditingController(
+          text:
+              widget
+                  .userData['email'] ??
+              "",
+        );
   }
 
-  Future<void> confirmarCambios() async {
+  Future<void>
+  confirmarCambios() async {
     // Validar que no estén vacíos los importantes
-    if (_emailController.text.isEmpty || _nombreController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Nombre y Email son obligatorios")),
+    if (_emailController.text.isEmpty ||
+        _nombreController
+            .text
+            .isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Nombre y Email son obligatorios",
+          ),
+        ),
       );
       return;
     }
 
     setState(() => _isSaving = true);
 
-    String username = widget.userData['username'];
+    String username =
+        widget.userData['username'];
 
     // 1. CORRECCIÓN URL: Apuntamos al AuthController
     // (Recuerda: Si usas Android Emulator usa 'http://10.0.2.2:8080/...')
-    final url = Uri.parse('http://localhost:8080/api/auth/modificar/$username');
+    final url = Uri.parse(
+      'http://10.0.2.2:8080/api/auth/modificar/$username',
+    );
 
     try {
       final response = await http.put(
         url,
-        headers: {"Content-Type": "application/json"},
+        headers: {
+          "Content-Type":
+              "application/json",
+        },
         body: jsonEncode({
           // 2. CORRECCIÓN BODY: Solo enviamos lo que el DTO UpdateUserRequest espera
-          "nombre": _nombreController.text,
-          "apellidos": _apellidosController.text,
-          "email": _emailController.text,
+          "nombre":
+              _nombreController.text,
+          "apellidos":
+              _apellidosController.text,
+          "email":
+              _emailController.text,
         }),
       );
 
@@ -70,14 +114,27 @@ class _EditUserState extends State<EditUser> {
           // Devolvemos los datos nuevos a la pantalla anterior
           final nuevosDatos = {
             ...widget.userData,
-            "nombre": _nombreController.text,
-            "apellidos": _apellidosController.text,
-            "email": _emailController.text,
+            "nombre":
+                _nombreController.text,
+            "apellidos":
+                _apellidosController
+                    .text,
+            "email":
+                _emailController.text,
           };
-          Navigator.pop(context, nuevosDatos);
+          Navigator.pop(
+            context,
+            nuevosDatos,
+          );
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Usuario modificado correctamente")),
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(
+            const SnackBar(
+              content: Text(
+                "Usuario modificado correctamente",
+              ),
+            ),
           );
         }
       } else {
@@ -87,12 +144,20 @@ class _EditUserState extends State<EditUser> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text("Error: $e"),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
-      if (mounted) setState(() => _isSaving = false);
+      if (mounted)
+        setState(
+          () => _isSaving = false,
+        );
     }
   }
 
@@ -100,11 +165,15 @@ class _EditUserState extends State<EditUser> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Editar Usuario"),
+        title: const Text(
+          "Editar Usuario",
+        ),
         backgroundColor: Colors.teal,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(
+          20.0,
+        ),
         child: Column(
           children: [
             // 1. USUARIO (ID) - BLOQUEADO
@@ -117,11 +186,19 @@ class _EditUserState extends State<EditUser> {
             const SizedBox(height: 15),
 
             // 2. NOMBRE - EDITABLE
-            _crearInput(_nombreController, "Nombre", Icons.person),
+            _crearInput(
+              _nombreController,
+              "Nombre",
+              Icons.person,
+            ),
             const SizedBox(height: 15),
 
             // 3. APELLIDOS - EDITABLE
-            _crearInput(_apellidosController, "Apellidos", Icons.badge),
+            _crearInput(
+              _apellidosController,
+              "Apellidos",
+              Icons.badge,
+            ),
             const SizedBox(height: 15),
 
             // 4. EMAIL - EDITABLE
@@ -129,7 +206,8 @@ class _EditUserState extends State<EditUser> {
               _emailController,
               "Email",
               Icons.email,
-              tipo: TextInputType.emailAddress,
+              tipo: TextInputType
+                  .emailAddress,
             ),
             const SizedBox(height: 40),
 
@@ -138,18 +216,28 @@ class _EditUserState extends State<EditUser> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: _isSaving ? null : confirmarCambios,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal,
-                  foregroundColor: Colors.white,
-                ),
+                onPressed: _isSaving
+                    ? null
+                    : confirmarCambios,
+                style:
+                    ElevatedButton.styleFrom(
+                      backgroundColor:
+                          Colors.teal,
+                      foregroundColor:
+                          Colors.white,
+                    ),
                 child: _isSaving
-                    ? const CircularProgressIndicator(color: Colors.white)
+                    ? const CircularProgressIndicator(
+                        color: Colors
+                            .white,
+                      )
                     : const Text(
                         "CONFIRMAR",
                         style: TextStyle(
                           fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                          fontWeight:
+                              FontWeight
+                                  .bold,
                         ),
                       ),
               ),
@@ -166,7 +254,8 @@ class _EditUserState extends State<EditUser> {
     String label,
     IconData icon, {
     bool bloqueado = false,
-    TextInputType tipo = TextInputType.text,
+    TextInputType tipo =
+        TextInputType.text,
   }) {
     return TextField(
       controller: ctrl,
@@ -174,10 +263,18 @@ class _EditUserState extends State<EditUser> {
       keyboardType: tipo,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: bloqueado ? Colors.grey : Colors.teal),
+        prefixIcon: Icon(
+          icon,
+          color: bloqueado
+              ? Colors.grey
+              : Colors.teal,
+        ),
         filled: true,
-        fillColor: bloqueado ? Colors.grey[200] : Colors.white,
-        border: const OutlineInputBorder(),
+        fillColor: bloqueado
+            ? Colors.grey[200]
+            : Colors.white,
+        border:
+            const OutlineInputBorder(),
       ),
     );
   }

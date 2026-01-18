@@ -3,94 +3,172 @@ package com.proyect.backend.service;
 import com.proyect.backend.dto.AuthResponse;
 import com.proyect.backend.dto.LoginRequest;
 import com.proyect.backend.dto.RegisterRequest;
+import com.proyect.backend.model.LoginLog; // <--- NUEVO IMPORT
 import com.proyect.backend.model.Usuario;
+import com.proyect.backend.repository.LoginLogRepository; // <--- NUEVO IMPORT
 import com.proyect.backend.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+
 @Service
 @RequiredArgsConstructor
+// Servicio de Autenticación con Lógica de Bloqueo y Auditoría de Logs
 public class AuthService {
+    
     private final UsuarioRepository repository;
+    private final LoginLogRepository loginLogRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
-    
-    // --- MÉTODO DE REGISTRO ---
+
+    // Metódos del servicio, incluyendo registro, login, eliminación y actualización de usuarios
+
+    // MÉTODO DE REGISTRO DE USUARIO
     public AuthResponse register(RegisterRequest request) {
-        
         if(repository.existsByUsername(request.getUsername())){
             throw new IllegalArgumentException("El nombre de usuario ya existe");
         }
         if(repository.existsByEmail(request.getEmail())){
             throw new IllegalArgumentException("El email ya está registrado");
         }
-        
+
         var user = Usuario.builder()
-            .username(request.getUsername())
-            .password(passwordEncoder.encode(request.getPassword()))
-            .email(request.getEmail())
-            .nombre(request.getNombre())
-            .apellidos(request.getApellidos())
-            .rol("USER") 
-            .cuentaBloqueada(false)
-            .intentosFallidos(0)
-            .build();
+                .username(request.getUsername())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .email(request.getEmail())
+                .nombre(request.getNombre())
+                .apellidos(request.getApellidos())
+                .rol("USER")
+                .cuentaBloqueada(false)
+                .intentosFallidos(0)
+                .build();
 
         repository.save(user);
 
         var jwtToken = jwtService.generateToken(user);
 
-        // 👇 AQUI ESTÁ EL CAMBIO: Devolvemos todos los datos, no solo el token
         return AuthResponse.builder()
                 .token(jwtToken)
-                .username(user.getUsername()) // <--- AÑADIDO
-                .nombre(user.getNombre())     // <--- AÑADIDO
-                .apellidos(user.getApellidos()) // <--- AÑADIDO
-                .email(user.getEmail())       // <--- AÑADIDO
-                .rol(user.getRol())           // <--- AÑADIDO
+                .username(user.getUsername())
+                .nombre(user.getNombre())
+                .apellidos(user.getApellidos())
+                .email(user.getEmail())
+                .rol(user.getRol())
                 .build();
     }
-    
-    // --- MÉTODO DE LOGIN ---
-    public AuthResponse login(LoginRequest request){
-        authenticationManager.authenticate(
-            new UsernamePasswordAuthenticationToken(
-                        request.getUsername(),
-                        request.getPassword()
-                )
-        );
 
+    // MÉTODO DE LOGIN (CON AUDITORÍA DE LOGS)
+    public AuthResponse login(LoginRequest request){
+        
+        // Detectamos el sistema (si viene null, ponemos 'Desconocido')
+        String sistema = (request.getSistema() != null) ? request.getSistema() : "Desconocido";
+
+        // Buscamos el usuario
+        // Nota: Si no existe, lanza excepción y NO se guarda log (porque tu tabla log requiere un Usuario real)
         Usuario user = repository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado"));
-        
-        var jwtToken = jwtService.generateToken(user);
 
-        // 👇 AQUI ESTÁ EL CAMBIO: Rellenamos los datos para Flutter
-        return AuthResponse.builder()
-                .token(jwtToken)
-                .username(user.getUsername()) // <--- AÑADIDO
-                .nombre(user.getNombre())     // <--- AÑADIDO
-                .apellidos(user.getApellidos()) // <--- AÑADIDO
-                .email(user.getEmail())       // <--- AÑADIDO
-                .rol(user.getRol())           // <--- AÑADIDO
-                .build();
+        // CHECK: ¿Está bloqueado PREVIAMENTE?
+        if (user.isCuentaBloqueada()) {
+            // [LOG] Registramos el intento fallido por bloqueo
+            registrarLog(user, sistema, false, "Cuenta bloqueada previamente");
+            
+            throw new IllegalArgumentException("Tu cuenta está bloqueada. Contacta con un administrador.");
+        }
+
+        try {
+            // INTENTO: Probamos la autenticación
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getUsername(),
+                            request.getPassword()
+                    )
+            );
+            
+            // SI LLEGA AQUÍ, LA CONTRASEÑA ES CORRECTA (ÉXITO)
+            
+            // RESET: Si entra bien, ponemos el contador a 0
+            if (user.getIntentosFallidos() > 0) {
+                user.setIntentosFallidos(0);
+                repository.save(user);
+            }
+
+            // [LOG] Registramos el éxito
+            registrarLog(user, sistema, true, null);
+
+            // Generamos Token
+            var jwtToken = jwtService.generateToken(user);
+
+            return AuthResponse.builder()
+                    .token(jwtToken)
+                    .username(user.getUsername())
+                    .nombre(user.getNombre())
+                    .apellidos(user.getApellidos())
+                    .email(user.getEmail())
+                    .rol(user.getRol())
+                    .build();
+
+        } catch (BadCredentialsException e) {
+            // SI ENTRA AQUÍ, LA CONTRASEÑA ES INCORRECTA (FALLO) 
+            
+            // LOGICA DE BLOQUEO
+            int nuevosIntentos = user.getIntentosFallidos() + 1;
+            user.setIntentosFallidos(nuevosIntentos);
+            
+            String mensajeErrorFrontend;
+            String motivoLog = "Contraseña incorrecta"; // Motivo por defecto para el log
+
+            if (nuevosIntentos >= 3) {
+                // Bloqueamos
+                user.setCuentaBloqueada(true);
+                mensajeErrorFrontend = "Has superado los 3 intentos. Tu cuenta ha sido bloqueada.";
+                motivoLog = "Bloqueado tras 3 intentos fallidos"; // Motivo específico para el log
+            } else {
+                // Avisamos
+                int intentosRestantes = 3 - nuevosIntentos;
+                mensajeErrorFrontend = "Credenciales incorrectas. Te quedan " + intentosRestantes + " intentos.";
+            }
+            
+            // Guardamos los cambios del usuario (intentos/bloqueo)
+            repository.save(user);
+
+            // [LOG] Registramos el fallo y el motivo exacto
+            registrarLog(user, sistema, false, motivoLog);
+            
+            // Lanzamos el error para que llegue al Frontend
+            throw new IllegalArgumentException(mensajeErrorFrontend);
+        }
     }
 
-    // --- 3. ELIMINAR USUARIO (Versión Puente: String -> ID) ---
+    // MÉTODO AUXILIAR PRIVADO PARA GUARDAR LOGS
+    private void registrarLog(Usuario usuario, String sistema, boolean exito, String motivo) {
+        LoginLog log = new LoginLog();
+        log.setUsuario(usuario);
+        log.setFechaHora(LocalDateTime.now());
+        log.setSistemaOrigen(sistema);
+        log.setExito(exito);
+        log.setMotivoFallo(motivo); // Si es éxito, el motivo será null, lo cual es correcto
+
+        loginLogRepository.save(log);
+    }
+
+    // ELIMINAR USUARIO
     public void eliminarUsuario(String username) {
         Usuario user = repository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("No se puede borrar: El usuario no existe"));
         
+        // El borrado en cascada se encarga de los logs automáticamente
         repository.delete(user);
     }
 
-    // --- 4. ACTUALIZAR USUARIO ---
-    // Nota: Aquí lo ideal sería usar UpdateUserRequest, pero si usas RegisterRequest funciona igual
+    // ACTUALIZAR USUARIO
     public Usuario actualizarUsuario(String username, RegisterRequest request) {
         Usuario user = repository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado para editar"));
