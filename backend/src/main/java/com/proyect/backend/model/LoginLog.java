@@ -23,12 +23,14 @@ public class LoginLog {
     private Long id;
 
     // 2. Aquí está la relación con la tabla de usuarios.
-    // ManyToOne significa: "Muchos logs pueden pertenecer a Un usuario".
+    // ManyToOne significa: "Muchos logs pueden pertenecer a Un usuario". El nullable=true permite logs sin usuario asociado.
     @ManyToOne 
-    @JoinColumn(name = "username_usuario", referencedColumnName = "username")
+    @JoinColumn(name = "username_usuario", referencedColumnName = "username", nullable = true)
     private Usuario usuario; 
     // Fíjate que en Java guardamos el objeto 'User' completo, 
     // pero en SQL Spring creará una columna 'username_usuario' que guarda el texto.
+
+    private String usernameTexto; // Guarda el texto del username, incluso si no hay usuario asociado.
 
     private LocalDateTime fechaHora; // Guarda fecha y hora exacta.
 
