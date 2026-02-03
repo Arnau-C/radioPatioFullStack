@@ -151,6 +151,7 @@ public class AuthService {
     private void registrarLog(Usuario usuario, String sistema, boolean exito, String motivo) {
         LoginLog log = new LoginLog();
         log.setUsuario(usuario);
+        log.setUsernameTexto(usuario.getUsername());
         log.setFechaHora(LocalDateTime.now());
         log.setSistemaOrigen(sistema);
         log.setExito(exito);
@@ -164,7 +165,15 @@ public class AuthService {
         Usuario user = repository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("No se puede borrar: El usuario no existe"));
         
-        // El borrado en cascada se encarga de los logs automáticamente
+        // Antes de borrar el usuario, actualizamos sus logs para desvincular el objeto Usuario
+        if (user.getLogs() != null) {
+            for (LoginLog log : user.getLogs()) {
+                log.setUsuario(null); // Rompemos el enlace al objeto User
+                loginLogRepository.save(log); // Guardamos el cambio en el log
+            }
+        }
+        
+        // Ahora sí borramos el usuario
         repository.delete(user);
     }
 

@@ -41,7 +41,7 @@ public class Usuario implements UserDetails{
     @Column(length = 25)
     private String username;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String password;
 
     private String nombre; // Si no ponemos @Column, asume el mismo nombre y que puede ser null.
@@ -56,7 +56,7 @@ public class Usuario implements UserDetails{
 
     private boolean cuentaBloqueada = false; // Para saber si está bloqueado.
 
-    @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "usuario")
     @ToString.Exclude  // Evita que toString() entre en bucle infinito
     @JsonIgnore // Evita ciclos infinitos en la serialización JSON
     private List<LoginLog> logs;
