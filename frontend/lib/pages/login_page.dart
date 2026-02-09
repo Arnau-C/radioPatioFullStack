@@ -1,110 +1,249 @@
-import 'dart:convert'; // 1. Para convertir datos a JSON
+import 'dart:convert';
+import 'dart:io'; // <--- 1. NECESARIO PARA DETECTAR LA PLATAFORMA (Android/iOS)
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:frontend/components/button.dart';
 import 'package:frontend/components/textfield.dart';
 import 'package:frontend/pages/register_page.dart';
-import 'package:frontend/pages/user_page.dart'; // <--- IMPORTANTE: Importamos la UserPage
-import 'package:http/http.dart' as http; // 2. Para hacer peticiones al Backend
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
+import 'package:device_info_plus/device_info_plus.dart'; // <--- 2. IMPORTAR EL PAQUETE NUEVO
+
+// TUS PÁGINAS
+import 'package:frontend/pages/super_admin_page.dart';
+import 'package:frontend/pages/user_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<LoginPage> createState() =>
+      _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
-  // 1. Controladores de texto para capturar los datos
-  final usernameController = TextEditingController();
-  final passwordController = TextEditingController();
+class _LoginPageState
+    extends State<LoginPage> {
+  final usernameController =
+      TextEditingController();
+  final passwordController =
+      TextEditingController();
 
-  final storage = const FlutterSecureStorage();
+  String? _usernameError;
+  String? _passwordError;
 
-  void signUserIn() async {
-    // A) Mostramos círculo de carga
-    showDialog(
-      context: context,
-      builder: (context) {
-        return const Center(child: CircularProgressIndicator());
-      },
-    );
+  final storage =
+      const FlutterSecureStorage();
 
-    // Ajusta esta URL si usas Android Emulator a 'http://10.0.2.2:8080/api/auth/login'
-    final String url = 'http://localhost:8080/api/auth/login';
+  // Instancia para obtener info del dispositivo
+  final DeviceInfoPlugin deviceInfo =
+      DeviceInfoPlugin();
 
+  // --- NUEVA FUNCIÓN MÁGICA PARA OBTENER EL NOMBRE ---
+  Future<String>
+  obtenerNombreDispositivo() async {
     try {
-      // C) Enviamos la petición POST
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'username': usernameController.text,
-          'password': passwordController.text,
-        }),
-      );
-
-      // D) Quitamos el círculo de carga
-      if (mounted) Navigator.pop(context);
-
-      // E) Comprobamos la respuesta
-      if (response.statusCode == 200) {
-        // --- ÉXITO: EL PUENTE ---
-        final jsonResponse = jsonDecode(response.body);
-
-        // 1. Guardamos el Token en la caja fuerte (persistencia)
-        String token = jsonResponse['token'];
-        await storage.write(key: 'jwt_token', value: token);
-        print("Login exitoso. Token guardado.");
-
-        // 2. Preparamos los datos para enviar a la siguiente pantalla
-        // Ahora Java nos devuelve todo esto gracias al cambio que hicimos en AuthService
-        Map<String, dynamic> datosUsuario = {
-          'token': token,
-          'username': jsonResponse['username'],
-          'nombre': jsonResponse['nombre'],
-          'apellidos': jsonResponse['apellidos'],
-          'email': jsonResponse['email'],
-          'rol': jsonResponse['rol'],
-        };
-
-        if (mounted) {
-          // 3. NAVEGACIÓN (El Puente)
-          // Usamos pushReplacement para que no puedan volver al login dando "atrás"
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => UserPage(
-                userData: datosUsuario,
-              ), // <--- Pasamos la bandeja de datos
-            ),
-          );
-        }
+      if (Platform.isAndroid) {
+        AndroidDeviceInfo androidInfo =
+            await deviceInfo
+                .androidInfo;
+        // Devuelve ej: "Samsung S21 (Android)" o "Pixel 6 (Android)"
+        return "${androidInfo.model} (${androidInfo.brand} Android)";
+      } else if (Platform.isIOS) {
+        IosDeviceInfo iosInfo =
+            await deviceInfo.iosInfo;
+        // Devuelve ej: "iPhone 13 (iOS)"
+        return "${iosInfo.utsname.machine} (iOS)";
       } else {
-        // --- ERROR (Credenciales malas) ---
-        mostrarMensaje("Usuario o contraseña incorrectos", esError: true);
+        return "App Flutter (Escritorio/Web)";
       }
     } catch (e) {
-      // --- ERROR DE CONEXIÓN ---
-      if (mounted) Navigator.pop(context); // Quitar carga si falla
-      mostrarMensaje("No se pudo conectar con el servidor", esError: true);
-      print("Error técnico: $e");
+      return "Dispositivo Desconocido";
     }
   }
 
-  void mostrarMensaje(String mensaje, {bool esError = true}) {
+  // --- LÓGICA DE INICIO DE SESIÓN ---
+  void signUserIn() async {
+    setState(() {
+      _usernameError = null;
+      _passwordError = null;
+    });
+
+    bool hayErrores = false;
+    if (usernameController
+        .text
+        .isEmpty) {
+      _usernameError =
+          "Ingresa tu usuario";
+      hayErrores = true;
+    }
+    if (passwordController
+        .text
+        .isEmpty) {
+      _passwordError =
+          "Ingresa tu contraseña";
+      hayErrores = true;
+    }
+
+    if (hayErrores) {
+      setState(() {});
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return const Center(
+          child:
+              CircularProgressIndicator(),
+        );
+      },
+    );
+
+    // 1. OBTENEMOS EL NOMBRE REAL DEL MÓVIL ANTES DE ENVIAR NADA
+    String nombreDispositivo =
+        await obtenerNombreDispositivo();
+
+    final url = Uri.parse(
+      'http://10.0.2.2:8080/api/auth/login',
+    );
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type':
+              'application/json',
+        },
+        body: jsonEncode({
+          'username':
+              usernameController.text,
+          'password':
+              passwordController.text,
+          // 2. ENVIAMOS EL NOMBRE REAL (Ej: "Pixel 4 (google Android)")
+          'sistema': nombreDispositivo,
+        }),
+      );
+
+      if (mounted)
+        Navigator.pop(context);
+
+      if (response.statusCode == 200) {
+        // --- ÉXITO ---
+        final jsonResponse = jsonDecode(
+          response.body,
+        );
+        String token =
+            jsonResponse['token'];
+        String rol =
+            jsonResponse['rol'];
+
+        await storage.write(
+          key: 'jwt_token',
+          value: token,
+        );
+
+        if (mounted) {
+          if (rol == 'SUPER_ADMIN') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const SuperAdminPage(),
+              ),
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    UserPage(
+                      userData:
+                          jsonResponse,
+                    ),
+              ),
+            );
+          }
+        }
+      } else {
+        // --- ERROR ---
+        String mensajeServidor =
+            "Error al iniciar sesión";
+        try {
+          final errorJson = jsonDecode(
+            response.body,
+          );
+          if (errorJson is Map &&
+              errorJson.containsKey(
+                'message',
+              )) {
+            mensajeServidor =
+                errorJson['message'];
+          }
+        } catch (_) {
+          mensajeServidor =
+              response.body;
+        }
+
+        setState(() {
+          String msgLower =
+              mensajeServidor
+                  .toLowerCase();
+          if (msgLower.contains(
+                'usuario',
+              ) ||
+              msgLower.contains(
+                'user',
+              )) {
+            _usernameError =
+                mensajeServidor;
+          } else if (msgLower.contains(
+                'contraseña',
+              ) ||
+              msgLower.contains(
+                'password',
+              ) ||
+              msgLower.contains(
+                'credenciales',
+              ) ||
+              msgLower.contains(
+                'bloqueada',
+              ) ||
+              msgLower.contains(
+                'intentos',
+              )) {
+            _passwordError =
+                mensajeServidor;
+          } else {
+            mostrarAlerta(
+              mensajeServidor,
+            );
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted)
+        Navigator.pop(context);
+      mostrarAlerta(
+        "Error de conexión con el servidor",
+      );
+    }
+  }
+
+  void mostrarAlerta(String mensaje) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: esError
-              ? Colors.red.shade400
-              : Colors.green.shade400,
+          backgroundColor:
+              Colors.red.shade400,
           title: Center(
             child: Text(
               mensaje,
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+              ),
+              textAlign:
+                  TextAlign.center,
             ),
           ),
         );
@@ -115,94 +254,161 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 223, 156, 136),
+      backgroundColor:
+          const Color.fromARGB(
+            255,
+            223,
+            156,
+            136,
+          ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment:
+                  MainAxisAlignment
+                      .center,
               children: [
-                const SizedBox(height: 50),
+                const SizedBox(
+                  height: 50,
+                ),
 
-                Image.asset('lib/images/logo.png', width: 200, height: 200),
+                Image.asset(
+                  'lib/images/logo.png',
+                  width: 220,
+                  height: 220,
+                ),
 
-                const SizedBox(height: 30),
+                const SizedBox(
+                  height: 50,
+                ),
 
-                Text(
-                  '¡Hola de nuevo!',
+                const Text(
+                  'Bienvenido de nuevo',
                   style: TextStyle(
-                    color: const Color.fromARGB(255, 0, 30, 53),
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+                    color:
+                        Color.fromARGB(
+                          255,
+                          0,
+                          30,
+                          53,
+                        ),
+                    fontSize: 16,
                   ),
                 ),
 
-                const SizedBox(height: 25),
+                const SizedBox(
+                  height: 25,
+                ),
 
-                // Campo Usuario
                 MyTextField(
-                  controller: usernameController,
-                  hintText: 'Nombre de usuario',
+                  controller:
+                      usernameController,
+                  hintText:
+                      'Nombre de usuario',
                   obscureText: false,
+                  errorMsg:
+                      _usernameError,
                 ),
 
-                const SizedBox(height: 10),
+                const SizedBox(
+                  height: 10,
+                ),
 
-                // Campo Contraseña
                 MyTextField(
-                  controller: passwordController,
-                  hintText: 'Contraseña',
+                  controller:
+                      passwordController,
+                  hintText:
+                      'Contraseña',
                   obscureText: true,
+                  errorMsg:
+                      _passwordError,
                 ),
 
-                const SizedBox(height: 10),
+                const SizedBox(
+                  height: 10,
+                ),
 
-                // Olvidaste contraseña
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 25.0),
+                  padding:
+                      const EdgeInsets.symmetric(
+                        horizontal:
+                            25.0,
+                      ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                    mainAxisAlignment:
+                        MainAxisAlignment
+                            .end,
                     children: [
                       Text(
                         '¿Olvidaste tu contraseña?',
-                        style: TextStyle(color: Colors.grey),
+                        style: TextStyle(
+                          color: Colors
+                              .grey[600],
+                        ),
                       ),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 25),
+                const SizedBox(
+                  height: 25,
+                ),
 
-                // BOTÓN DE LOGIN
-                MyButton(onTap: signUserIn),
+                MyButton(
+                  onTap: signUserIn,
+                ),
 
-                const SizedBox(height: 30),
+                const SizedBox(
+                  height: 50,
+                ),
 
-                // Registro
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 20.0),
+                  padding:
+                      const EdgeInsets.only(
+                        bottom: 20.0,
+                      ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment:
+                        MainAxisAlignment
+                            .center,
                     children: [
                       Text(
                         '¿No tienes cuenta?',
-                        style: TextStyle(color: Colors.grey),
+                        style: TextStyle(
+                          color: Colors
+                              .grey[700],
+                        ),
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(
+                        width: 4,
+                      ),
                       GestureDetector(
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const RegisterPage(),
+                              builder:
+                                  (
+                                    context,
+                                  ) =>
+                                      const RegisterPage(),
                             ),
                           );
                         },
                         child: const Text(
-                          'Regístrate aquí',
+                          'Regístrate ahora',
                           style: TextStyle(
-                            color: Color.fromARGB(255, 0, 30, 53),
-                            fontWeight: FontWeight.bold,
+                            color:
+                                Color.fromARGB(
+                                  255,
+                                  0,
+                                  30,
+                                  53,
+                                ),
+                            fontWeight:
+                                FontWeight
+                                    .bold,
                           ),
                         ),
                       ),

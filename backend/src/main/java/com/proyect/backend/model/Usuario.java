@@ -14,12 +14,20 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data; // <--- IMPORTANTE
 import lombok.NoArgsConstructor;
+import lombok.ToString;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 //import jakarta.persistence.GeneratedValue;
 //import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 
 @Data 
 @Builder
@@ -27,6 +35,7 @@ import jakarta.persistence.Table;
 @AllArgsConstructor
 @Entity
 @Table(name = "users")
+// Implementamos UserDetails para integrar con Spring Security
 public class Usuario implements UserDetails{
     
     //Primary Key & varchar(50)
@@ -34,7 +43,7 @@ public class Usuario implements UserDetails{
     @Column(length = 25)
     private String username;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String password;
 
     private String nombre; // Si no ponemos @Column, asume el mismo nombre y que puede ser null.
@@ -45,14 +54,26 @@ public class Usuario implements UserDetails{
 
     private String rol; // 'ADMIN', 'USER', etc.
 
+    @Builder.Default
     private int intentosFallidos = 0; // Para contar los errores de login.
 
+    @Builder.Default
     private boolean cuentaBloqueada = false; // Para saber si está bloqueado.
+
+    @OneToMany(mappedBy = "usuario")
+    @ToString.Exclude  // Evita que toString() entre en bucle infinito
+    @JsonIgnore // Evita ciclos infinitos en la serialización JSON
+    private List<LoginLog> logs;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority(rol));
     }
+
+    @ManyToOne
+    @JoinColumn(name = "comunidad_id")
+    private Comunidad comunidad;
+
     @Override
     public String getPassword() {
         return password;

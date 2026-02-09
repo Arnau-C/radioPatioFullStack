@@ -22,14 +22,14 @@ public class ApplicationConfig {
     
     private final UsuarioRepository usuarioRepository;
 
-    // 1. EL BUSCADOR
+    // EL BUSCADOR
     // Conecta Spring Security con nuestra Base de Datos de Usuarios
     @Bean
     public UserDetailsService userDetailsService() {
         return username -> usuarioRepository.findById(username).orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado"));
     }
 
-    // 2. EL PROVEEDOR DE AUTENTICACIÓN
+    // EL PROVEEDOR DE AUTENTICACIÓN
     // Este metodo dice: "Usa este UserDetailsService y este PasswordEncoder para autenticar"
     @Bean
     public AuthenticationProvider authenticationProvider() {
@@ -39,13 +39,13 @@ public class ApplicationConfig {
         return authProvider;
     }
 
-    // 3. EL JEFE DE AUTENTICACIÓN
+    // EL JEFE DE AUTENTICACIÓN
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 
-    // 4. EL ENCRIPTADOR (BCrypt)
+    // EL ENCRIPTADOR (BCrypt)
     // Transforma "password123" en "$2a$10$R7H9..."
     @Bean
     public PasswordEncoder passwordEncoder() {
