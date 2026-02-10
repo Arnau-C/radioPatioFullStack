@@ -103,7 +103,7 @@ class _LoginPageState
         await obtenerNombreDispositivo();
 
     final url = Uri.parse(
-      'http://10.0.2.2:8080/api/auth/login',
+      'http://127.0.0.1:8080/api/auth/login',
     );
 
     try {
@@ -251,175 +251,156 @@ class _LoginPageState
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor:
-          const Color.fromARGB(
-            255,
-            223,
-            156,
-            136,
-          ),
-      body: SafeArea(
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    body: Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFFDF9C88),
+            Color(0xFFFDE8E1),
+          ],
+        ),
+      ),
+      child: SafeArea(
         child: Center(
           child: SingleChildScrollView(
+            // El padding horizontal ayuda a que la Card no pegue a los bordes
+            padding: const EdgeInsets.symmetric(horizontal: 25.0),
             child: Column(
-              mainAxisAlignment:
-                  MainAxisAlignment
-                      .center,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(
-                  height: 50,
-                ),
-
+                const SizedBox(height: 10),
+                
+                // 1. LOGO MÁS GRANDE Y SIN SOMBRA ALREDEDOR
                 Image.asset(
                   'lib/images/logo.png',
-                  width: 220,
-                  height: 220,
+                  width: 280,  // Aumentado de 180 a 280
+                  height: 280, // Aumentado de 180 a 280
                 ),
 
-                const SizedBox(
-                  height: 50,
-                ),
+                const SizedBox(height: 20),
 
-                const Text(
-                  'Bienvenido de nuevo',
-                  style: TextStyle(
-                    color:
-                        Color.fromARGB(
-                          255,
-                          0,
-                          30,
-                          53,
-                        ),
-                    fontSize: 16,
+                // 2. RECUADRO (CARD) MÁS PEQUEÑO EN ANCHO
+                ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: 550,
                   ),
-                ),
-
-                const SizedBox(
-                  height: 25,
-                ),
-
-                MyTextField(
-                  controller:
-                      usernameController,
-                  hintText:
-                      'Nombre de usuario',
-                  obscureText: false,
-                  errorMsg:
-                      _usernameError,
-                ),
-
-                const SizedBox(
-                  height: 10,
-                ),
-
-                MyTextField(
-                  controller:
-                      passwordController,
-                  hintText:
-                      'Contraseña',
-                  obscureText: true,
-                  errorMsg:
-                      _passwordError,
-                ),
-
-                const SizedBox(
-                  height: 10,
-                ),
-
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(
-                        horizontal:
-                            25.0,
-                      ),
-                  child: Row(
-                    mainAxisAlignment:
-                        MainAxisAlignment
-                            .end,
-                    children: [
-                      Text(
-                        '¿Olvidaste tu contraseña?',
-                        style: TextStyle(
-                          color: Colors
-                              .grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 25,
-                ),
-
-                MyButton(
-                  onTap: signUserIn,
-                ),
-
-                const SizedBox(
-                  height: 50,
-                ),
-
-                Padding(
-                  padding:
-                      const EdgeInsets.only(
-                        bottom: 20.0,
-                      ),
-                  child: Row(
-                    mainAxisAlignment:
-                        MainAxisAlignment
-                            .center,
-                    children: [
-                      Text(
-                        '¿No tienes cuenta?',
-                        style: TextStyle(
-                          color: Colors
-                              .grey[700],
-                        ),
-                      ),
-                      const SizedBox(
-                        width: 4,
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (
-                                    context,
-                                  ) =>
-                                      const RegisterPage(),
+                  child: Card(
+                    elevation: 8,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(25.0),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Bienvenido de nuevo',
+                            style: TextStyle(
+                              color: Color(0xFF001E35),
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
                             ),
-                          );
-                        },
-                        child: const Text(
-                          'Regístrate ahora',
-                          style: TextStyle(
-                            color:
-                                Color.fromARGB(
-                                  255,
-                                  0,
-                                  30,
-                                  53,
-                                ),
-                            fontWeight:
-                                FontWeight
-                                    .bold,
                           ),
-                        ),
+                          const SizedBox(height: 20),
+
+                          MyTextField(
+                            controller: usernameController,
+                            hintText: 'Nombre de usuario',
+                            obscureText: false,
+                            errorMsg: _usernameError,
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          MyTextField(
+                            controller: passwordController,
+                            hintText: 'Contraseña',
+                            obscureText: true,
+                            errorMsg: _passwordError,
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              '¿Olvidaste tu contraseña?',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: signUserIn,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF001E35),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                                elevation: 5,
+                              ),
+                              child: const Text(
+                                'Iniciar Sesión',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
+
+                const SizedBox(height: 25),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      '¿No tienes cuenta?',
+                      style: TextStyle(color: Colors.grey[700]),
+                    ),
+                    const SizedBox(width: 5),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const RegisterPage(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        'Regístrate ahora',
+                        style: TextStyle(
+                          color: Color(0xFF001E35),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
               ],
             ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

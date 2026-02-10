@@ -88,7 +88,7 @@ class _EditUserState
     // 1. CORRECCIÓN URL: Apuntamos al AuthController
     // (Recuerda: Si usas Android Emulator usa 'http://10.0.2.2:8080/...')
     final url = Uri.parse(
-      'http://10.0.2.2:8080/api/auth/modificar/$username',
+      'http://localhost:8080/api/auth/modificar/$username',
     );
 
     try {

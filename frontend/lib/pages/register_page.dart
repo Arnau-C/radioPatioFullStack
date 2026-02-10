@@ -143,7 +143,7 @@ class _RegisterPageState
     );
 
     final url = Uri.parse(
-      'http://10.0.2.2:8080/api/auth/registro',
+      'http://127.0.0.1:8080/api/auth/registro',
     );
 
     try {
@@ -304,236 +304,178 @@ class _RegisterPageState
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor:
-          const Color.fromARGB(
-            255,
-            223,
-            156,
-            136,
-          ),
-      body: SafeArea(
+Widget build(BuildContext context) {
+  return Scaffold(
+    // 1. FONDO CON DEGRADADO (Igual al Login)
+    body: Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFFDF9C88),
+            Color(0xFFFDE8E1),
+          ],
+        ),
+      ),
+      child: SafeArea(
         child: Center(
           child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 25.0),
             child: Column(
-              mainAxisAlignment:
-                  MainAxisAlignment
-                      .center,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(
-                  height: 25,
-                ),
+                const SizedBox(height: 20),
+                
+                // LOGO (Tamaño moderado para que no desplace todo hacia abajo)
                 Image.asset(
                   'lib/images/logo.png',
-                  width: 100,
-                  height: 100,
+                  width: 150,
+                  height: 150,
                 ),
-                const SizedBox(
-                  height: 25,
-                ),
-                const Text(
-                  'Crear Cuenta',
-                  style: TextStyle(
-                    color:
-                        Color.fromARGB(
-                          255,
-                          0,
-                          30,
-                          53,
-                        ),
-                    fontSize: 24,
-                    fontWeight:
-                        FontWeight.bold,
+
+                const SizedBox(height: 20),
+
+                // 2. TARJETA CENTRAL (Ancho controlado)
+                ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: 600, // Un poco más ancho para albergar los formularios
                   ),
-                ),
-                const SizedBox(
-                  height: 25,
-                ),
+                  child: Card(
+                    elevation: 8,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 30.0,
+                        vertical: 25.0,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Crear Cuenta',
+                            style: TextStyle(
+                              color: Color(0xFF001E35),
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 25),
 
-                // --- CAMPOS DE TEXTO ---
+                          // CAMPOS EN GRUPOS PEQUEÑOS
+                          MyTextField(
+                            controller: nombreController,
+                            hintText: 'Nombre',
+                            obscureText: false,
+                            errorMsg: _nombreError,
+                          ),
+                          const SizedBox(height: 12),
 
-                // 1. Nombre
-                MyTextField(
-                  controller:
-                      nombreController,
-                  hintText: 'Nombre',
-                  obscureText: false,
-                  errorMsg:
-                      _nombreError,
-                ),
-                const SizedBox(
-                  height: 10,
-                ),
+                          MyTextField(
+                            controller: apellidosController,
+                            hintText: 'Apellidos',
+                            obscureText: false,
+                            errorMsg: _apellidosError,
+                          ),
+                          const SizedBox(height: 12),
 
-                // 2. Apellidos
-                MyTextField(
-                  controller:
-                      apellidosController,
-                  hintText: 'Apellidos',
-                  obscureText: false,
-                  errorMsg:
-                      _apellidosError,
-                ),
-                const SizedBox(
-                  height: 10,
-                ),
+                          MyTextField(
+                            controller: emailController,
+                            hintText: 'Email',
+                            obscureText: false,
+                            errorMsg: _emailError,
+                          ),
+                          const SizedBox(height: 12),
 
-                // 3. Email
-                MyTextField(
-                  controller:
-                      emailController,
-                  hintText: 'Email',
-                  obscureText: false,
-                  errorMsg: _emailError,
-                ),
-                const SizedBox(
-                  height: 10,
-                ),
+                          MyTextField(
+                            controller: usernameController,
+                            hintText: 'Nombre de usuario',
+                            obscureText: false,
+                            errorMsg: _usernameError,
+                          ),
+                          const SizedBox(height: 12),
 
-                // 4. Username
-                MyTextField(
-                  controller:
-                      usernameController,
-                  hintText:
-                      'Nombre de usuario',
-                  obscureText: false,
-                  errorMsg:
-                      _usernameError,
-                ),
-                const SizedBox(
-                  height: 10,
-                ),
+                          MyTextField(
+                            controller: passwordController,
+                            hintText: 'Contraseña',
+                            obscureText: true,
+                            errorMsg: _passwordError,
+                          ),
+                          const SizedBox(height: 12),
 
-                // 5. Password
-                MyTextField(
-                  controller:
-                      passwordController,
-                  hintText:
-                      'Contraseña',
-                  obscureText: true,
-                  errorMsg:
-                      _passwordError,
-                ),
-                const SizedBox(
-                  height: 10,
-                ),
+                          MyTextField(
+                            controller: confirmPasswordController,
+                            hintText: 'Confirmar Contraseña',
+                            obscureText: true,
+                            errorMsg: _confirmPasswordError,
+                          ),
 
-                // 6. Confirmar Password
-                MyTextField(
-                  controller:
-                      confirmPasswordController,
-                  hintText:
-                      'Confirmar Contraseña',
-                  obscureText: true,
-                  errorMsg:
-                      _confirmPasswordError,
-                ),
+                          const SizedBox(height: 30),
 
-                const SizedBox(
-                  height: 25,
-                ),
-
-                // BOTÓN DE REGISTRO
-                GestureDetector(
-                  onTap: signUserUp,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.all(
-                          25,
-                        ),
-                    margin:
-                        const EdgeInsets.symmetric(
-                          horizontal:
-                              25,
-                        ),
-                    decoration:
-                        BoxDecoration(
-                          color: Colors
-                              .black,
-                          borderRadius:
-                              BorderRadius.circular(
-                                8,
+                          // 3. BOTÓN ESTILIZADO (Igual al de Login)
+                          SizedBox(
+                            width: double.infinity,
+                            height: 55,
+                            child: ElevatedButton(
+                              onPressed: signUserUp,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF001E35),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                                elevation: 5,
                               ),
-                        ),
-                    child: const Center(
-                      child: Text(
-                        "Registrarse",
-                        style: TextStyle(
-                          color: Colors
-                              .white,
-                          fontWeight:
-                              FontWeight
-                                  .bold,
-                          fontSize: 16,
-                        ),
+                              child: const Text(
+                                'Registrarse',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
 
-                const SizedBox(
-                  height: 30,
-                ),
+                const SizedBox(height: 25),
 
-                // LINK A LOGIN
-                Padding(
-                  padding:
-                      const EdgeInsets.only(
-                        bottom: 20.0,
-                      ),
-                  child: Row(
-                    mainAxisAlignment:
-                        MainAxisAlignment
-                            .center,
-                    children: [
-                      const Text(
-                        '¿Ya tienes cuenta?',
+                // LINK VOLVER AL LOGIN
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      '¿Ya tienes cuenta?',
+                      style: TextStyle(color: Colors.grey[700]),
+                    ),
+                    const SizedBox(width: 5),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context); // Volver atrás al Login
+                      },
+                      child: const Text(
+                        'Inicia sesión',
                         style: TextStyle(
-                          color: Colors
-                              .grey,
+                          color: Color(0xFF001E35),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
                       ),
-                      const SizedBox(
-                        width: 4,
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (
-                                    context,
-                                  ) =>
-                                      const LoginPage(),
-                            ),
-                          );
-                        },
-                        child: const Text(
-                          'Inicia sesión',
-                          style: TextStyle(
-                            color:
-                                Color.fromARGB(
-                                  255,
-                                  0,
-                                  30,
-                                  53,
-                                ),
-                            fontWeight:
-                                FontWeight
-                                    .bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 20),
               ],
             ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

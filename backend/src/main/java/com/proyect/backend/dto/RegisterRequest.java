@@ -35,4 +35,6 @@ public class RegisterRequest {
     @NotBlank(message = "El email no puede estar vacío")
     @Email(message = "El email debe tener un formato válido")
     private String email;
+
+    private String rol;
 }

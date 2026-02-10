@@ -31,8 +31,12 @@ public class Comunidad {
 
     @Column(nullable = false)
     private LocalDateTime fechaCreacion;
+    
+    @Column(unique = true)
+    private String codigoInvitacion;
+    private LocalDateTime fechaExpiracionCodigo;
 
     protected void onCreate() {
         this.fechaCreacion = LocalDateTime.now();
-    }   
+    }
 }

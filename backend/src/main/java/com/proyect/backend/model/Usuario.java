@@ -67,11 +67,13 @@ public class Usuario implements UserDetails{
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority(rol));
+        String rolSeguro = (rol == null) ? "USER" : rol;
+        return List.of(new SimpleGrantedAuthority(rolSeguro));
     }
 
     @ManyToOne
     @JoinColumn(name = "comunidad_id")
+    @JsonIgnore
     private Comunidad comunidad;
 
     @Override
@@ -83,9 +85,6 @@ public class Usuario implements UserDetails{
     public String getUsername() {
         return username;
     }
-
-    // Estas 4 preguntas controlan si el usuario puede entrar.
-    // Como tú ya tienes campos para bloquear, los usamos aquí:
 
     @Override
     public boolean isAccountNonExpired() {

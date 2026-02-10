@@ -2,6 +2,8 @@ package com.proyect.backend.model;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -26,6 +28,7 @@ public class LoginLog {
     // ManyToOne significa: "Muchos logs pueden pertenecer a Un usuario". El nullable=true permite logs sin usuario asociado.
     @ManyToOne 
     @JoinColumn(name = "username_usuario", referencedColumnName = "username", nullable = true)
+    @JsonIgnore
     private Usuario usuario; 
     // Fíjate que en Java guardamos el objeto 'User' completo, 
     // pero en SQL Spring creará una columna 'username_usuario' que guarda el texto.
