@@ -1,124 +1,115 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:frontend/providers/community_provider.dart';
+import 'package:frontend/providers/user_provider.dart';
+import 'package:provider/provider.dart';
 
-class CreateCommunityPage extends StatefulWidget{
-  final String username;
-
-  const CreateCommunityPage({super.key, required this.username});
+/// [CreateCommunityPage]
+///
+/// Página dedicada a la creación de una nueva comunidad de vecinos.
+/// Permite a un administrador introducir el nombre y la dirección de la comunidad.
+///
+/// Es un `StatefulWidget` para gestionar el estado del formulario y la lógica de creación.
+class CreateCommunityPage extends StatefulWidget {
+  const CreateCommunityPage({super.key});
 
   @override
   State<CreateCommunityPage> createState() => _CreateCommunityPageState();
 }
 
-class _CreateCommunityPageState extends State<CreateCommunityPage>{
+/// [_CreateCommunityPageState]
+///
+/// Gestiona el estado y la lógica de la [CreateCommunityPage].
+class _CreateCommunityPageState extends State<CreateCommunityPage> {
+  // Clave global para identificar y gestionar el estado del formulario.
+  // Permite validar todos los campos de texto a la vez.
   final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController _nombreController = TextEditingController();
-  final TextEditingController _direccionController = TextEditingController();
-  
-  bool _isLoading = false;
+  // Controladores para los campos de nombre y dirección.
+  final _nombreController = TextEditingController();
+  final _direccionController = TextEditingController();
 
-  Future<void> crearComunidad() async {
+  /// [_crearComunidad]
+  ///
+  /// Gestiona la validación y el proceso de creación de la comunidad.
+  Future<void> _crearComunidad() async {
+    // Si el formulario no es válido, no hace nada.
+    // `validate()` ejecuta la función `validator` de cada TextFormField.
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    // Obtiene las instancias de los proveedores.
+    final communityProvider =
+        Provider.of<CommunityProvider>(context, listen: false);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
 
-    // URL directa como la tenías tú (Para Linux usa 127.0.0.1)
-    final url = Uri.parse('http://127.0.0.1:8080/api/comunidades/crear');
+    // Llama al método del proveedor para crear la comunidad.
+    final updatedUserData = await communityProvider.createCommunity(
+      nombre: _nombreController.text.trim(),
+      direccion: _direccionController.text.trim(),
+    );
 
-    try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          // Estos campos coinciden con lo que espera tu Java (ComunidadRequest)
-          'nombre': _nombreController.text.trim(),
-          'direccion': _direccionController.text.trim(),
-          'presidenteUsername': widget.username, 
-        }),
-      );
+    // --- Manejo de la respuesta ---
+    if (updatedUserData != null && mounted) {
+      // Si la creación fue exitosa, actualiza los datos del usuario en el UserProvider.
+      userProvider.setUser(updatedUserData);
 
-      if (response.statusCode == 200) {
-        // El backend nos devuelve el JSON con el código generado
-        final data = jsonDecode(response.body);
-        String codigoGenerado = data['codigoInvitacion'];
-
-        if (mounted) {
-          // Mostramos el código en un diálogo bonito
-          await showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (ctx) => AlertDialog(
-              title: const Text("¡Comunidad Creada! 🎉"),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text("La comunidad se ha guardado correctamente."),
-                  const SizedBox(height: 10),
-                  const Text("Este es el CÓDIGO DE INVITACIÓN para tus vecinos:"),
-                  const SizedBox(height: 15),
-                  Container(
-                    padding: const EdgeInsets.all(15),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade100,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.orange),
-                    ),
-                    child: Text(
-                      codigoGenerado,
-                      style: const TextStyle(
-                        fontSize: 24, 
-                        fontWeight: FontWeight.bold, 
-                        letterSpacing: 2
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+      // Muestra un diálogo de éxito con el código de invitación.
+      // Es un paso crucial para que otros usuarios puedan unirse.
+      await showDialog(
+        context: context,
+        barrierDismissible: false, // El usuario no puede cerrar el diálogo pulsando fuera.
+        builder: (ctx) => AlertDialog(
+          title: const Text("¡Comunidad Creada! 🎉"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min, // La columna ocupa el mínimo espacio.
+            children: [
+              const Text("La comunidad se ha guardado correctamente."),
+              const SizedBox(height: 10),
+              const Text("Este es el CÓDIGO DE INVITACIÓN para tus vecinos:"),
+              const SizedBox(height: 15),
+              // Contenedor resaltado para el código de invitación.
+              Container(
+                padding: const EdgeInsets.all(15),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.orange),
+                ),
+                child: Text(
+                  communityProvider.invitationCode ?? '',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 2,
                   ),
-                ],
+                  textAlign: TextAlign.center,
+                ),
               ),
-              actions: [
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(ctx); // Cierra el diálogo
-                    Navigator.pop(context, { // Vuelve a la pantalla anterior diciendo "true" (éxito)
-                      'exito': true,
-                      'nuevoCodigo': codigoGenerado
-                    });
-                  },
-                  child: const Text("ENTENDIDO"),
-                )
-              ],
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx); // Cierra el diálogo.
+                Navigator.pop(context, true); // Vuelve a la pantalla anterior.
+              },
+              child: const Text("ENTENDIDO"),
             ),
-          );
-        }
-      } else {
-        // Si falla (ej: usuario ya tiene comunidad)
-        if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Error: ${response.body}"), backgroundColor: Colors.red),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error de conexión: $e"), backgroundColor: Colors.red),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+          ],
+        ),
+      );
+    } else if (mounted) {
+      // Si hay un error, muestra un mensaje en una SnackBar.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error: ${communityProvider.error}"),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
+
   @override
-  Widget build(BuildContext context){
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Nueva Comunidad"),
@@ -128,20 +119,26 @@ class _CreateCommunityPageState extends State<CreateCommunityPage>{
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(
-          key: _formKey,
+          key: _formKey, // Asigna la clave al formulario.
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(Icons.location_city, size: 80, color: Colors.deepPurple),
+              const Icon(
+                Icons.location_city,
+                size: 80,
+                color: Colors.deepPurple,
+              ),
               const SizedBox(height: 20),
               const Text(
                 "Registra tu Comunidad",
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 30),
-
-              // CAMPO NOMBRE (Mapea a private String nombre)
+              // Campo de texto para el nombre.
               TextFormField(
                 controller: _nombreController,
                 decoration: const InputDecoration(
@@ -158,8 +155,7 @@ class _CreateCommunityPageState extends State<CreateCommunityPage>{
                 },
               ),
               const SizedBox(height: 20),
-
-              // CAMPO DIRECCIÓN (Mapea a private String direccion)
+              // Campo de texto para la dirección.
               TextFormField(
                 controller: _direccionController,
                 decoration: const InputDecoration(
@@ -176,19 +172,27 @@ class _CreateCommunityPageState extends State<CreateCommunityPage>{
                 },
               ),
               const SizedBox(height: 40),
-
-              // BOTÓN GUARDAR
-              ElevatedButton(
-                onPressed: _isLoading ? null : crearComunidad,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurple,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                child: _isLoading 
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text("CREAR COMUNIDAD", style: TextStyle(fontSize: 18)),
+              // Botón para enviar el formulario.
+              Consumer<CommunityProvider>(
+                builder: (context, provider, child) {
+                  return ElevatedButton(
+                    onPressed: provider.isLoading ? null : _crearComunidad,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: provider.isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                            "CREAR COMUNIDAD",
+                            style: TextStyle(fontSize: 18),
+                          ),
+                  );
+                },
               ),
             ],
           ),
