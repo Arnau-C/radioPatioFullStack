@@ -80,16 +80,12 @@ class _LoginPageState extends State<LoginPage> {
       if (userData['rol'] == 'SUPER_ADMIN') {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) => const SuperAdminPage(),
-          ),
+          MaterialPageRoute(builder: (context) => const SuperAdminPage()),
         );
       } else {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) => const UserPage(),
-          ),
+          MaterialPageRoute(builder: (context) => const UserPage()),
         );
       }
     }
@@ -107,10 +103,7 @@ class _LoginPageState extends State<LoginPage> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFDF9C88),
-              Color(0xFFFDE8E1),
-            ],
+            colors: [Color(0xFFDF9C88), Color(0xFFFDE8E1)],
           ),
         ),
         child: SafeArea(
@@ -128,11 +121,7 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 10),
 
                     // Logo de la aplicación.
-                    Image.asset(
-                      'lib/images/logo.png',
-                      width: 280,
-                      height: 280,
-                    ),
+                    Image.asset('lib/images/logo.png', width: 280, height: 280),
                     const SizedBox(height: 20),
 
                     // Tarjeta que contiene el formulario de login.
@@ -192,7 +181,9 @@ class _LoginPageState extends State<LoginPage> {
                                   height: 50,
                                   child: ElevatedButton(
                                     // Se deshabilita si está en estado de carga.
-                                    onPressed: provider.isLoading ? null : _handleLogin,
+                                    onPressed: provider.isLoading
+                                        ? null
+                                        : _handleLogin,
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF001E35),
                                       shape: RoundedRectangleBorder(
@@ -203,8 +194,10 @@ class _LoginPageState extends State<LoginPage> {
                                     // Muestra un indicador de progreso o el texto.
                                     child: provider.isLoading
                                         ? const CircularProgressIndicator(
-                                            valueColor: AlwaysStoppedAnimation<
-                                                Color>(Colors.white),
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                  Colors.white,
+                                                ),
                                           )
                                         : const Text(
                                             'Iniciar Sesión',
@@ -228,15 +221,18 @@ class _LoginPageState extends State<LoginPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('¿No tienes cuenta?',
-                            style: TextStyle(color: Colors.grey[700])),
+                        Text(
+                          '¿No tienes cuenta?',
+                          style: TextStyle(color: Colors.grey[700]),
+                        ),
                         const SizedBox(width: 5),
                         GestureDetector(
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (context) => const RegisterPage()),
+                                builder: (context) => const RegisterPage(),
+                              ),
                             );
                           },
                           child: const Text(
