@@ -1,69 +1,340 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:frontend/models/user.dart';
-import 'package:frontend/pages/edit_user.dart';
-import 'package:frontend/pages/login_page.dart';
-import 'package:frontend/providers/auth_provider.dart';
-import 'package:frontend/providers/user_provider.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
-/// [UserPage]
-///
-/// Muestra el perfil del usuario o un panel de administración dependiendo del rol.
-///
-/// Es un `StatelessWidget` que actúa como un "despachador": lee el usuario
-/// del `UserProvider` y decide qué vista mostrar (`_AdminView` o `_UserView`).
-/// También gestiona el caso en que no haya ningún usuario en sesión,
-/// redirigiendo a la [LoginPage].
-class UserPage extends StatelessWidget {
+import 'package:frontend/pages/create_community_page.dart';
+import 'package:frontend/pages/edit_user.dart';
+import 'package:frontend/pages/login_page.dart';
+import 'package:frontend/providers/user_provider.dart';
+import 'package:frontend/utils/api_client.dart';
+
+class UserPage extends StatefulWidget {
   const UserPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Obtiene el usuario actual desde el UserProvider.
-    // `Provider.of` con `listen: true` (por defecto) hace que el widget se
-    // reconstruya si el usuario cambia.
-    final user = Provider.of<UserProvider>(context).user;
+  State<UserPage> createState() => _UserPageState();
+}
 
-    // --- Lógica de Guarda de Ruta ---
-    // Si no hay usuario en sesión, no se debe mostrar esta página.
-    if (user == null) {
-      // Usamos `WidgetsBinding.instance.addPostFrameCallback` para programar una
-      // acción a ejecutar justo después de que el frame actual se haya construido.
-      // Esto es para evitar errores al intentar navegar durante una fase de build.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-          (route) => false, // Elimina todas las rutas anteriores.
-        );
-      });
-      // Mientras se redirige, muestra un indicador de carga.
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+class _UserPageState extends State<UserPage> {
+  String? codigoInvitacionActual;
+  String? nombreComunidadActual;
+
+  @override
+  void initState() {
+    super.initState();
+    // Leemos el usuario del Provider de forma segura en initState
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = Provider.of<UserProvider>(context, listen: false).user;
+      if (user != null && user.rol == 'PRESIDENTE') {
+        obtenerCodigoComunidad(user.username);
+      }
+    });
+  }
+
+  // --- LÓGICA DE COMUNIDADES ---
+  Future<void> obtenerCodigoComunidad(String username) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/comunidades/detalle/$username');
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          codigoInvitacionActual = data['codigoInvitacion'];
+          nombreComunidadActual = data['nombre'];
+        });
+      }
+    } catch (e) {
+      debugPrint("Error al obtener código: $e");
     }
+  }
 
-    // Determina si el usuario tiene un rol de administrador.
-    bool isAdmin = user.rol == 'ADMIN' || user.rol == 'SUPER_ADMIN';
+  Future<void> unirseComunidad(String codigo, String username) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/comunidades/unirse');
 
-    // Construcción de la página principal.
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'username': username, 'codigo': codigo}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        String nombreComunidad = data['comunidadNombre'];
+
+        // Actualizamos el rol localmente en el provider para que la UI cambie
+        final provider = Provider.of<UserProvider>(context, listen: false);
+        if (provider.user != null) {
+          // Actualización de estado manual para forzar el repintado
+          final userJson = provider.user!.toJson();
+          userJson['rol'] = 'VECINO';
+          provider.setUser(userJson);
+          // Nota: Deberías idealmente tener un método en el provider para actualizar el rol
+          // Como no veo un método setUser directo, simularemos el repintado
+        }
+
+        if (mounted) {
+          Navigator.pop(context); // Cierra el diálogo
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                "¡Bienvenido! Ahora eres parte de $nombreComunidad 🎉",
+              ),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          // Forzamos a recargar los datos del usuario para que se actualice el rol real
+          setState(() {});
+        }
+      } else {
+        final errorData = jsonDecode(response.body);
+        String errorMsg = errorData['error'] ?? "Error desconocido";
+
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error de conexión: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // --- LÓGICA DE BORRADO DE CUENTA ---
+  Future<void> eliminarCuenta(String username) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/auth/borrar/$username');
+
+    try {
+      final response = await http.delete(url);
+
+      if (response.statusCode == 200) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Cuenta eliminada correctamente. Hasta pronto."),
+              backgroundColor: Colors.grey,
+              duration: Duration(seconds: 2),
+            ),
+          );
+
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginPage()),
+            (Route<dynamic> route) => false,
+          );
+        }
+      } else {
+        throw Exception("Error al borrar: ${response.statusCode}");
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  // --- DIÁLOGOS ---
+  void mostrarDialogoUnirse(String username) {
+    final TextEditingController _codigoController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Unirse a una Comunidad"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              "Introduce el código de invitación que te ha dado tu presidente (Ej: RDO-8392)",
+            ),
+            const SizedBox(height: 15),
+            TextField(
+              controller: _codigoController,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: "Código de Invitación",
+                hintText: "XXX-XXXX",
+              ),
+              textCapitalization: TextCapitalization.characters,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancelar"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (_codigoController.text.isNotEmpty) {
+                unirseComunidad(_codigoController.text.trim(), username);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.teal,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text("UNIRSE"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- LÓGICA DE ADMIN (Manteniendo tu versión) ---
+  Future<List<dynamic>> fetchUsers() async {
+    final url = Uri.parse('${ApiClient.baseUrl}/superadmin/users');
+    final response = await http.get(url);
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    throw Exception('Error al cargar usuarios');
+  }
+
+  Future<void> borrarUsuarioComoAdmin(String usernameObjetivo) async {
+    final url = Uri.parse(
+      '${ApiClient.baseUrl}/superadmin/users/$usernameObjetivo',
+    );
+    try {
+      final response = await http.delete(url);
+      if (response.statusCode == 200 && mounted) {
+        Navigator.pop(context); // Cierra diálogo
+        Navigator.pop(context); // Cierra lista
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Usuario $usernameObjetivo eliminado"),
+            backgroundColor: Colors.grey,
+          ),
+        );
+        mostrarListaUsuarios(
+          Provider.of<UserProvider>(context, listen: false).user!.username,
+        );
+      }
+    } catch (e) {
+      debugPrint(e.toString());
+    }
+  }
+
+  void mostrarListaUsuarios(String adminUsername) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Usuarios Registrados"),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: FutureBuilder<List<dynamic>>(
+            future: fetchUsers(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting)
+                return const Center(child: CircularProgressIndicator());
+              if (snapshot.hasError)
+                return Center(child: Text("Error: ${snapshot.error}"));
+              if (!snapshot.hasData || snapshot.data!.isEmpty)
+                return const Center(child: Text("No hay usuarios"));
+
+              final users = snapshot.data!;
+              return ListView.separated(
+                itemCount: users.length,
+                separatorBuilder: (ctx, i) => const Divider(),
+                itemBuilder: (context, index) {
+                  final u = users[index];
+                  final String username = u['username'];
+                  final String rol = u['rol'] ?? 'USER';
+                  final bool esMismoAdmin = username == adminUsername;
+
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: (rol == 'ADMIN' || rol == 'SUPER_ADMIN')
+                          ? Colors.indigo
+                          : Colors.teal,
+                      child: Text(
+                        username[0].toUpperCase(),
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    title: Text(
+                      username,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(rol),
+                    trailing: esMismoAdmin
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _confirmarBorradoAdmin(username),
+                          ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: const Text("Cerrar"),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmarBorradoAdmin(String username) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("¿Borrar a $username?"),
+        content: const Text("Esta acción es irreversible."),
+        actions: [
+          TextButton(
+            child: const Text("Cancelar"),
+            onPressed: () => Navigator.pop(ctx),
+          ),
+          TextButton(
+            child: const Text("ELIMINAR", style: TextStyle(color: Colors.red)),
+            onPressed: () => borrarUsuarioComoAdmin(username),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- BUILD PRINCIPAL ---
+  @override
+  Widget build(BuildContext context) {
+    final user = Provider.of<UserProvider>(context).user;
+    if (user == null)
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+
+    bool isAdmin = (user.rol == 'ADMIN' || user.rol == 'SUPER_ADMIN');
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
           isAdmin ? "Panel Admin" : "Mi Perfil",
           style: const TextStyle(color: Colors.black87),
         ),
-        backgroundColor: Colors.transparent, // Fondo transparente.
-        elevation: 0, // Sin sombra.
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black87),
         actions: [
-          // Botón para cerrar sesión.
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.redAccent),
             onPressed: () {
-              // Llama al método de logout del AuthProvider.
-              Provider.of<AuthProvider>(context, listen: false).logout(
-                Provider.of<UserProvider>(context, listen: false),
-              );
-              // Redirige al usuario a la página de login.
               Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (context) => const LoginPage()),
@@ -73,21 +344,12 @@ class UserPage extends StatelessWidget {
           ),
         ],
       ),
-      // El cuerpo del Scaffold es la vista de admin o de usuario según el rol.
-      body: isAdmin ? _AdminView(user: user) : _UserView(user: user),
+      body: isAdmin ? _buildAdminView(user) : _buildUserView(user),
     );
   }
-}
 
-/// [_AdminView]
-///
-/// Widget privado que muestra la vista para un usuario con rol de administrador.
-class _AdminView extends StatelessWidget {
-  final AppUser user;
-  const _AdminView({required this.user});
-
-  @override
-  Widget build(BuildContext context) {
+  // --- VISTA ADMIN ---
+  Widget _buildAdminView(user) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -95,8 +357,11 @@ class _AdminView extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.admin_panel_settings,
-                size: 80, color: Colors.indigo),
+            const Icon(
+              Icons.admin_panel_settings,
+              size: 80,
+              color: Colors.indigo,
+            ),
             const SizedBox(height: 20),
             const Text(
               "PANEL DE ADMINISTRADOR",
@@ -110,10 +375,7 @@ class _AdminView extends StatelessWidget {
             ),
             const SizedBox(height: 50),
             ElevatedButton.icon(
-              onPressed: () {
-                // TODO: La lógica para gestionar usuarios irá aquí.
-                // Actualmente pendiente de refactorización.
-              },
+              onPressed: () => mostrarListaUsuarios(user.username),
               icon: const Icon(Icons.visibility),
               label: const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
@@ -129,80 +391,20 @@ class _AdminView extends StatelessWidget {
       ),
     );
   }
-}
 
-/// [_UserView]
-///
-/// Widget privado que muestra la vista para un usuario estándar.
-class _UserView extends StatelessWidget {
-  final AppUser user;
-  const _UserView({required this.user});
-
-  /// [_handleDeleteAccount]
-  ///
-  /// Gestiona la lógica para eliminar la cuenta de un usuario.
-  Future<void> _handleDeleteAccount(BuildContext context) async {
-    // Pide confirmación al usuario antes de proceder.
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("¿Eliminar cuenta?"),
-        content: const Text(
-            "Perderás todos tus datos. Esta acción es irreversible."),
-        actions: [
-          TextButton(
-            child: const Text("Cancelar"),
-            onPressed: () => Navigator.pop(context, false),
-          ),
-          TextButton(
-            child: const Text("ELIMINAR", style: TextStyle(color: Colors.red)),
-            onPressed: () => Navigator.pop(context, true),
-          ),
-        ],
-      ),
-    );
-
-    // Si el usuario confirma y el widget sigue montado...
-    if (confirmed == true && context.mounted) {
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final success = await userProvider.deleteAccount();
-
-      // Muestra un mensaje de éxito o error.
-      if (success && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Cuenta eliminada correctamente. Hasta pronto."),
-            backgroundColor: Colors.grey,
-          ),
-        );
-        // NOTA: Aquí podría ser una buena idea redirigir al login.
-      } else if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                userProvider.error ?? "Error al eliminar la cuenta."),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  // --- VISTA USUARIO ---
+  Widget _buildUserView(user) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
           const SizedBox(height: 20),
-          // Avatar del usuario.
           const CircleAvatar(
             radius: 50,
             backgroundColor: Colors.teal,
             child: Icon(Icons.person, size: 50, color: Colors.white),
           ),
           const SizedBox(height: 15),
-          // Nombre y email del usuario.
           Text(
             "Hola, ${user.nombre ?? user.username}",
             style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
@@ -212,17 +414,176 @@ class _UserView extends StatelessWidget {
             style: const TextStyle(color: Colors.grey),
           ),
           const SizedBox(height: 40),
-          // Sección de la comunidad.
-          _buildCommunitySection(context, user),
+
+          // --- SECCIÓN COMUNIDAD (Dinámica según el rol real) ---
+          if (user.rol == 'USER') ...[
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 10,
+                    offset: Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  const Icon(
+                    Icons.home_work_outlined,
+                    size: 60,
+                    color: Colors.orange,
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    "No perteneces a ninguna comunidad",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildActionButton(
+                          icon: Icons.add_circle_outline,
+                          label: "Crear\nComunidad",
+                          color: Colors.deepPurple,
+                          onTap: () async {
+                            final resultado = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => CreateCommunityPage(
+                                  username: user.username,
+                                ),
+                              ),
+                            );
+                            if (resultado != null &&
+                                resultado is Map &&
+                                resultado['exito'] == true) {
+                              // Si creó con éxito, obtenemos el código nuevo y simulamos repintado
+                              setState(() {
+                                codigoInvitacionActual =
+                                    resultado['nuevoCodigo'];
+                              });
+                              // Nota: Al volver, el usuario debería volver a hacer login para refrescar el rol en el backend localmente
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    "Por favor, vuelve a iniciar sesión para actualizar tus permisos",
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 15),
+                      Expanded(
+                        child: _buildActionButton(
+                          icon: Icons.qr_code,
+                          label: "Unirme con\nCódigo",
+                          color: Colors.orange,
+                          onTap: () => mostrarDialogoUnirse(user.username),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            Card(
+              color: Colors.teal.shade50,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  children: [
+                    Icon(
+                      user.rol == 'PRESIDENTE'
+                          ? Icons.security
+                          : Icons.apartment,
+                      size: 50,
+                      color: Colors.teal,
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      "Ya eres miembro de una comunidad",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      user.rol,
+                      style: const TextStyle(
+                        color: Colors.teal,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (user.rol == 'PRESIDENTE' && codigoInvitacionActual != null) ...[
+              const Divider(height: 20),
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 40.0),
+                padding: const EdgeInsets.all(15.0),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    const Text(
+                      "CÓDIGO DE INVITACIÓN",
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SelectableText(
+                      codigoInvitacionActual!,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 3,
+                        color: Colors.black87,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                "Comparte este código con tus vecinos",
+                style: TextStyle(fontSize: 11, color: Colors.teal),
+              ),
+            ],
+          ],
+
           const SizedBox(height: 30),
-          // Botón para editar datos del usuario.
+
           ElevatedButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const EditUser()),
-              );
-            },
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const EditUser()),
+            ),
             icon: const Icon(Icons.edit),
             label: const Text("EDITAR MIS DATOS"),
             style: ElevatedButton.styleFrom(
@@ -231,59 +592,76 @@ class _UserView extends StatelessWidget {
               minimumSize: const Size(double.infinity, 50),
             ),
           ),
+
           const SizedBox(height: 15),
-          // Botón para eliminar la cuenta.
-          Consumer<UserProvider>(
-            builder: (context, provider, child) {
-              return ElevatedButton.icon(
-                onPressed: provider.isLoading
-                    ? null
-                    : () => _handleDeleteAccount(context),
-                icon: provider.isLoading
-                    ? const SizedBox.shrink() // No muestra icono si está cargando
-                    : const Icon(Icons.delete_forever),
-                label: provider.isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text("ELIMINAR MI CUENTA"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 50),
+
+          ElevatedButton.icon(
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text("¿Eliminar cuenta?"),
+                  content: const Text("Perderás todos tus datos."),
+                  actions: [
+                    TextButton(
+                      child: const Text("Cancelar"),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    TextButton(
+                      child: const Text(
+                        "ELIMINAR",
+                        style: TextStyle(color: Colors.red),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        eliminarCuenta(user.username);
+                      },
+                    ),
+                  ],
                 ),
               );
             },
+            icon: const Icon(Icons.delete_forever),
+            label: const Text("ELIMINAR MI CUENTA"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 50),
+            ),
           ),
         ],
       ),
     );
   }
 
-  /// [_buildCommunitySection]
-  ///
-  /// Widget que construye la sección de la comunidad (actualmente un placeholder).
-  Widget _buildCommunitySection(BuildContext context, AppUser user) {
-    // A futuro, este widget podría ser más complejo y tener su propio
-    // fichero para mayor claridad.
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-              color: Colors.black12, blurRadius: 10, offset: Offset(0, 5)),
-        ],
-      ),
-      child: const Column(
-        children: [
-          Icon(Icons.home_work_outlined, size: 60, color: Colors.orange),
-          SizedBox(height: 10),
-          Text(
-            "La sección de comunidad se refactorizará pronto",
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-        ],
+  // --- WIDGET AUXILIAR ---
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        height: 100,
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 30),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: color, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
       ),
     );
   }

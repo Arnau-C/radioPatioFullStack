@@ -5,6 +5,7 @@ import 'package:frontend/providers/community_provider.dart';
 import 'package:frontend/providers/super_admin_provider.dart';
 import 'package:frontend/providers/user_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() {
   runApp(
@@ -13,8 +14,11 @@ void main() {
         ChangeNotifierProvider(create: (context) => AuthProvider()),
         ChangeNotifierProvider(create: (context) => UserProvider()),
         ChangeNotifierProxyProvider<UserProvider, CommunityProvider>(
-          create: (context) => CommunityProvider(Provider.of<UserProvider>(context, listen: false)),
-          update: (context, userProvider, communityProvider) => communityProvider!..update(userProvider),
+          create: (context) => CommunityProvider(
+            Provider.of<UserProvider>(context, listen: false),
+          ),
+          update: (context, userProvider, communityProvider) =>
+              communityProvider!..update(userProvider),
         ),
         ChangeNotifierProvider(create: (context) => SuperAdminProvider()),
       ],
@@ -28,9 +32,18 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: LoginPage(),
+      // ESTO ES LO QUE ARREGLA EL ERROR DEL CALENDARIO:
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('es', 'ES'), // Idioma español
+      ],
+      home: const LoginPage(),
     );
   }
 }

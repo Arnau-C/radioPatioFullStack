@@ -10,7 +10,11 @@ import 'package:provider/provider.dart';
 ///
 /// Es un `StatefulWidget` para gestionar el estado del formulario y la lógica de creación.
 class CreateCommunityPage extends StatefulWidget {
-  const CreateCommunityPage({super.key});
+  // 1. AÑADE ESTA LÍNEA:
+  final String username;
+
+  // 2. CAMBIA EL CONSTRUCTOR PARA QUE PIDA EL USERNAME:
+  const CreateCommunityPage({super.key, required this.username});
 
   @override
   State<CreateCommunityPage> createState() => _CreateCommunityPageState();
@@ -37,8 +41,10 @@ class _CreateCommunityPageState extends State<CreateCommunityPage> {
     if (!_formKey.currentState!.validate()) return;
 
     // Obtiene las instancias de los proveedores.
-    final communityProvider =
-        Provider.of<CommunityProvider>(context, listen: false);
+    final communityProvider = Provider.of<CommunityProvider>(
+      context,
+      listen: false,
+    );
     final userProvider = Provider.of<UserProvider>(context, listen: false);
 
     // Llama al método del proveedor para crear la comunidad.
@@ -56,11 +62,13 @@ class _CreateCommunityPageState extends State<CreateCommunityPage> {
       // Es un paso crucial para que otros usuarios puedan unirse.
       await showDialog(
         context: context,
-        barrierDismissible: false, // El usuario no puede cerrar el diálogo pulsando fuera.
+        barrierDismissible:
+            false, // El usuario no puede cerrar el diálogo pulsando fuera.
         builder: (ctx) => AlertDialog(
           title: const Text("¡Comunidad Creada! 🎉"),
           content: Column(
-            mainAxisSize: MainAxisSize.min, // La columna ocupa el mínimo espacio.
+            mainAxisSize:
+                MainAxisSize.min, // La columna ocupa el mínimo espacio.
             children: [
               const Text("La comunidad se ha guardado correctamente."),
               const SizedBox(height: 10),
@@ -132,10 +140,7 @@ class _CreateCommunityPageState extends State<CreateCommunityPage> {
               const Text(
                 "Registra tu Comunidad",
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 30),
               // Campo de texto para el nombre.

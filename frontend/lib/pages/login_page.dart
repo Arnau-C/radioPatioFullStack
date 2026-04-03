@@ -4,6 +4,7 @@ import 'package:frontend/pages/register_page.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/user_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:frontend/pages/home_screen.dart';
 
 import 'package:frontend/pages/super_admin_page.dart';
 import 'package:frontend/pages/user_page.dart';
@@ -71,21 +72,29 @@ class _LoginPageState extends State<LoginPage> {
 
     // Si el login es exitoso y el widget sigue montado...
     if (userData != null && mounted) {
-      // 1. Guarda los datos del usuario en el UserProvider para que estén
-      //    disponibles en toda la aplicación.
+      // Asegúrate de que esto pase el objeto 'userData' completo (que lleva el token dentro)
       Provider.of<UserProvider>(context, listen: false).setUser(userData);
 
       // 2. Redirige al usuario a la página correspondiente según su rol.
       //    Usamos `pushReplacement` para que no pueda volver a la pantalla de login.
-      if (userData['rol'] == 'SUPER_ADMIN') {
+      final String rol = userData['rol'];
+
+      if (rol == 'SUPER_ADMIN') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const SuperAdminPage()),
         );
-      } else {
+      } else if (rol == 'USER') {
+        // --- SI ES USUARIO NUEVO, AL PERFIL ---
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const UserPage()),
+        );
+      } else {
+        // --- SI YA TIENE COMUNIDAD (VECINO/PRESIDENTE), AL HOME ---
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
         );
       }
     }

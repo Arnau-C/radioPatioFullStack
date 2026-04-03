@@ -3,7 +3,7 @@ import 'dart:io' show Platform;
 
 class ApiClient {
   static String get baseUrl {
-    String host = 'localhost';
+    String host = '127.0.0.1';
     if (!kIsWeb && Platform.isAndroid) {
       host = '10.0.2.2';
     }
