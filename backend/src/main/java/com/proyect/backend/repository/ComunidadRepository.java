@@ -9,5 +9,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ComunidadRepository extends JpaRepository<Comunidad, Long> {
+   
    Optional<Comunidad> findByCodigoInvitacion(String codigoInvitacion);
+   
+   Optional<Comunidad> findByNombre(String nombre);
 }

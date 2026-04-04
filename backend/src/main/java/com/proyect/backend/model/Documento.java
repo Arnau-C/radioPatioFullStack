@@ -1,6 +1,8 @@
 package com.proyect.backend.model;
 
 import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,22 +22,23 @@ public class Documento {
     private Long id;
 
     @Column(nullable = false)
-    private String titulo; // Ej: "Factura Luz Enero"
+    private String titulo;
 
     @Column(nullable = false)
-    private String rutaArchivo; // Ruta local o URL del PDF
+    private String rutaArchivo; // Ruta donde se guardó físicamente el PDF
 
-    @Enumerated(EnumType.STRING)
-    @Builder.Default
-    @Column(nullable = false)
-    private TipoDocumento tipoDocumento = TipoDocumento.OTROS; 
+    @ManyToOne(fetch = FetchType.EAGER) // Queremos ver siempre en qué carpeta está
+    @JoinColumn(name = "carpeta_id", nullable = false)
+    private Carpeta carpeta;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "subido_por_username", referencedColumnName = "username", nullable = false)
+    @JsonIgnoreProperties({"password", "email", "intentosFallidos", "cuentaBloqueada"}) 
     private Usuario subidoPor;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "comunidad_id", nullable = false)
+    @JsonIgnore
     private Comunidad comunidad;
 
     @Column(nullable = false)

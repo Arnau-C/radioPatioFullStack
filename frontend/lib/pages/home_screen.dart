@@ -8,6 +8,7 @@ import 'package:frontend/pages/login_page.dart';
 import 'package:frontend/pages/user_page.dart';
 import 'package:frontend/providers/user_provider.dart';
 import 'package:frontend/services/aviso_service.dart';
+import 'package:frontend/pages/documentos_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -267,6 +268,42 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
+
+      // --- 1. AÑADE EL DRAWER AQUÍ (Entre el backgroundColor y el appBar) ---
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            const DrawerHeader(
+              decoration: BoxDecoration(color: Colors.teal),
+              child: Text(
+                'Menú Comunidad',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            // La opción de Documentos solo se muestra si es Presidente o Admin
+            if (isPresident || isAdmin)
+              ListTile(
+                leading: const Icon(Icons.folder_shared, color: Colors.teal),
+                title: const Text('Administración (Documentos)'),
+                onTap: () {
+                  Navigator.pop(context); // Cierra la barra lateral primero
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const DocumentosScreen(),
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+
       // --- APPBAR (Logo RP y Perfil) ---
       appBar: AppBar(
         title: Row(
@@ -298,7 +335,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         backgroundColor: Colors.white,
         elevation: 1,
-        automaticallyImplyLeading: false,
+
+        // --- 2. ¡MUY IMPORTANTE! ---
+        // BORRA o COMENTA la siguiente línea. Si dice "false", el icono
+        // de la hamburguesa (las 3 rayitas) no aparecerá.
+        // automaticallyImplyLeading: false,
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 10.0),
