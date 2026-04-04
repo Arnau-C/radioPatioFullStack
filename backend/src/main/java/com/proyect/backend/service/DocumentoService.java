@@ -71,6 +71,22 @@ public class DocumentoService {
         }
         carpetaRepository.delete(carpeta);
     }
+    public void borrarDocumento(Long id) {
+    Documento doc = documentoRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Documento no encontrado"));
+
+    // 1. Intentar borrar el archivo físico del disco duro
+    try {
+        Path path = Paths.get(doc.getRutaArchivo());
+        Files.deleteIfExists(path);
+    } catch (IOException e) {
+        System.err.println("Error al borrar el archivo físico: " + e.getMessage());
+        // Seguimos adelante para al menos borrarlo de la BD
+    }
+
+    // 2. Borrar el registro de la Base de Datos
+    documentoRepository.delete(doc);
+}
 
     // --- LÓGICA DE DOCUMENTOS ---
     public Documento subirDocumento(MultipartFile file, Long carpetaId, String username) throws IOException {

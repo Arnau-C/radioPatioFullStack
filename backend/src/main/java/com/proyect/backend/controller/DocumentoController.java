@@ -114,4 +114,15 @@ public class DocumentoController {
             return ResponseEntity.internalServerError().build();
         }
     }
+
+    @DeleteMapping("/{id}")
+@PreAuthorize("hasAuthority('PRESIDENTE')")
+public ResponseEntity<?> borrarDocumento(@PathVariable Long id) {
+    try {
+        documentoService.borrarDocumento(id);
+        return ResponseEntity.ok(Map.of("mensaje", "Archivo borrado correctamente"));
+    } catch (Exception e) {
+        return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    }
+}
 }

@@ -29,11 +29,12 @@ public class Documento {
 
     @ManyToOne(fetch = FetchType.EAGER) // Queremos ver siempre en qué carpeta está
     @JoinColumn(name = "carpeta_id", nullable = false)
+    @JsonIgnore
     private Carpeta carpeta;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+   @ManyToOne(fetch = FetchType.EAGER) 
     @JoinColumn(name = "subido_por_username", referencedColumnName = "username", nullable = false)
-    @JsonIgnoreProperties({"password", "email", "intentosFallidos", "cuentaBloqueada"}) 
+    @JsonIgnoreProperties({"password", "email", "intentosFallidos", "cuentaBloqueada", "comunidad", "authorities", "enabled", "role"}) 
     private Usuario subidoPor;
 
     @ManyToOne(fetch = FetchType.LAZY)
