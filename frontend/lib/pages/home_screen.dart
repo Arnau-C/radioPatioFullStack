@@ -1,4 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:frontend/pages/create_incidence.dart';
+import 'package:frontend/pages/miembros_comunidad_screen.dart';
+import 'package:frontend/pages/tablon_incidencias_screen.dart';
+import 'package:frontend/utils/api_client.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
@@ -24,38 +31,103 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isFabMenuOpen = false;
   final AvisoService _avisoService = AvisoService(); // Instancia del servicio
 
+  int? _comunidadIdActual;
+  int _numeroIncidencias = 0;
+
+  // --- COLORES DEL NUEVO TEMA ---
+  final Color primaryDark = const Color(0xFF1A365D); // Azul marino profundo
+  final Color primaryLight = const Color(0xFFE2E8F0); // Gris azulado claro
+  final Color accentColor = const Color(0xFFE27D60); // Naranja/Teja (para contrastar)
+
   @override
   void initState() {
     super.initState();
     initializeDateFormatting('es_ES', null).then((_) {
       _updateFechaHeader();
     });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final user = userProvider.user;
+      final token = userProvider.token;
+
+      if (user != null && user.rol != 'USER' && token != null) {
+        _obtenerComunidadId(user.username, token);
+      }
+    });
   }
 
-  // Actualiza el texto de la fecha en el header (ej: Martes, 24 Marzo)
+  Future<void> _cargarNumeroIncidencias(String token, int comunidadId) async {
+    final url = Uri.parse(
+      '${ApiClient.baseUrl}/comunidades/$comunidadId/incidencias',
+    );
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+        if (mounted) {
+          setState(() {
+            _numeroIncidencias = data.length; 
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error al cargar incidencias: $e');
+    }
+  }
+
+  Future<void> _obtenerComunidadId(String username, String token) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/comunidades/detalle/$username');
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        if (mounted) {
+          setState(() {
+            _comunidadIdActual =
+                data['id'] ?? data['idComunidad'] ?? data['comunidadId'];
+          });
+        }
+      } else {
+        debugPrint(
+          'Error al obtener datos de comunidad: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      debugPrint('Fallo de conexión en _obtenerComunidadId: $e');
+    }
+  }
+
   void _updateFechaHeader() {
     if (mounted) {
       setState(() {
-        String diaSemana = DateFormat(
-          'EEEE',
-          'es_ES',
-        ).format(_fechaSeleccionada);
-        String diaMes = DateFormat(
-          'd MMMM',
-          'es_ES',
-        ).format(_fechaSeleccionada);
+        String diaSemana = DateFormat('EEEE', 'es_ES').format(_fechaSeleccionada);
+        String diaMes = DateFormat('d MMMM', 'es_ES').format(_fechaSeleccionada);
         _fechaHeaderFormatted =
             "${diaSemana[0].toUpperCase()}${diaSemana.substring(1)}, $diaMes";
       });
     }
   }
 
-  // --- LÓGICA DE NAVEGACIÓN DE FECHA ---
   void _irAlDiaSiguiente() {
     setState(() {
       _fechaSeleccionada = _fechaSeleccionada.add(const Duration(days: 1));
       _updateFechaHeader();
-      _isFabMenuOpen = false; // Cierra menú FAB si cambias de día
+      _isFabMenuOpen = false;
     });
   }
 
@@ -63,11 +135,10 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _fechaSeleccionada = _fechaSeleccionada.subtract(const Duration(days: 1));
       _updateFechaHeader();
-      _isFabMenuOpen = false; // Cierra menú FAB si cambias de día
+      _isFabMenuOpen = false; 
     });
   }
 
-  // Comprueba si el día seleccionado es hoy (para mostrar el texto "Hoy")
   bool _esHoy() {
     final now = DateTime.now();
     return _fechaSeleccionada.year == now.year &&
@@ -75,24 +146,22 @@ class _HomeScreenState extends State<HomeScreen> {
         _fechaSeleccionada.day == now.day;
   }
 
-  // --- LÓGICA DE CREACIÓN DE AVISOS (SOLO PRESIDENTE) ---
   void _mostrarFormularioCrearAviso(String username, String token) {
     final TextEditingController _tituloController = TextEditingController();
-    final TextEditingController _descripcionController =
-        TextEditingController();
-    DateTime _fechaAvisoNuevo = DateTime.now(); // Por defecto, aviso para hoy
+    final TextEditingController _descripcionController = TextEditingController();
+    DateTime _fechaAvisoNuevo = DateTime.now(); 
 
     showDialog(
       context: context,
-      barrierDismissible: false, // Obliga a usar botones para cerrar
+      barrierDismissible: false, 
       builder: (context) => StatefulBuilder(
-        // Necesario para actualizar la fecha dentro del diálogo
         builder: (context, setDialogState) => AlertDialog(
-          title: const Row(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
             children: [
-              Icon(Icons.campaign, color: Colors.teal),
-              SizedBox(width: 10),
-              Text("Crear Nuevo Aviso"),
+              Icon(Icons.campaign, color: accentColor),
+              const SizedBox(width: 10),
+              const Text("Crear Nuevo Aviso"),
             ],
           ),
           content: SingleChildScrollView(
@@ -100,7 +169,6 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Campo Título
                 TextField(
                   controller: _tituloController,
                   decoration: const InputDecoration(
@@ -111,7 +179,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   maxLength: 50,
                 ),
                 const SizedBox(height: 15),
-                // Campo Descripción/Contexto
                 TextField(
                   controller: _descripcionController,
                   decoration: const InputDecoration(
@@ -124,7 +191,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   keyboardType: TextInputType.multiline,
                 ),
                 const SizedBox(height: 20),
-                // Selector de Fecha
                 const Text(
                   "Fecha del Aviso:",
                   style: TextStyle(
@@ -135,21 +201,27 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 8),
                 InkWell(
                   onTap: () async {
-                    // Abre el selector de fecha nativo
                     final DateTime? picked = await showDatePicker(
                       context: context,
                       initialDate: _fechaAvisoNuevo,
-                      firstDate: DateTime.now().subtract(
-                        const Duration(days: 365),
-                      ), // Un año atrás máx
-                      lastDate: DateTime.now().add(
-                        const Duration(days: 365),
-                      ), // Un año vista máx
+                      firstDate: DateTime.now().subtract(const Duration(days: 365)), 
+                      lastDate: DateTime.now().add(const Duration(days: 365)), 
                       locale: const Locale('es', 'ES'),
+                      builder: (context, child) {
+                        return Theme(
+                          data: Theme.of(context).copyWith(
+                            colorScheme: ColorScheme.light(
+                              primary: primaryDark, 
+                              onPrimary: Colors.white, 
+                              onSurface: Colors.black, 
+                            ),
+                          ),
+                          child: child!,
+                        );
+                      },
                     );
                     if (picked != null && picked != _fechaAvisoNuevo) {
                       setDialogState(() {
-                        // Actualiza la fecha DENTRO del diálogo
                         _fechaAvisoNuevo = picked;
                       });
                     }
@@ -165,13 +237,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          DateFormat(
-                            'dd / MM / yyyy',
-                            'es_ES',
-                          ).format(_fechaAvisoNuevo),
+                          DateFormat('dd / MM / yyyy', 'es_ES').format(_fechaAvisoNuevo),
                           style: const TextStyle(fontSize: 16),
                         ),
-                        const Icon(Icons.calendar_today, color: Colors.teal),
+                        Icon(Icons.calendar_today, color: primaryDark),
                       ],
                     ),
                   ),
@@ -182,27 +251,21 @@ class _HomeScreenState extends State<HomeScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text(
-                "Cancelar",
-                style: TextStyle(color: Colors.grey),
-              ),
+              child: const Text("Cancelar", style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () async {
-                // Validación básica
-                if (_tituloController.text.isEmpty ||
-                    _descripcionController.text.isEmpty) {
+                if (_tituloController.text.isEmpty || _descripcionController.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Por favor, rellena todos los campos."),
-                      backgroundColor: Colors.orange,
+                    SnackBar(
+                      content: const Text("Por favor, rellena todos los campos."),
+                      backgroundColor: accentColor,
                     ),
                   );
                   return;
                 }
 
                 try {
-                  // Llamada al servicio para crear el aviso
                   await _avisoService.crearAviso(
                     _tituloController.text.trim(),
                     _descripcionController.text.trim(),
@@ -212,19 +275,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
 
                   if (mounted) {
-                    Navigator.pop(context); // Cierra diálogo
+                    Navigator.pop(context); 
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text("¡Aviso creado correctamente! 🎉"),
                         backgroundColor: Colors.green,
                       ),
                     );
-                    // Si el aviso creado es para el día que estamos viendo, recargamos la pantalla
-                    if (DateUtils.isSameDay(
-                      _fechaAvisoNuevo,
-                      _fechaSeleccionada,
-                    )) {
-                      setState(() {}); // Fuerza el repintado del FutureBuilder
+                    if (DateUtils.isSameDay(_fechaAvisoNuevo, _fechaSeleccionada)) {
+                      setState(() {}); 
                     }
                   }
                 } catch (e) {
@@ -239,7 +298,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
+                backgroundColor: primaryDark,
                 foregroundColor: Colors.white,
               ),
               child: const Text("CREAR AVISO"),
@@ -250,14 +309,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- BUILD PRINCIPAL ---
   @override
   Widget build(BuildContext context) {
-    // Obtenemos el usuario y el token del Provider
     final user = Provider.of<UserProvider>(context).user;
-    final token = Provider.of<UserProvider>(
-      context,
-    ).token; // Asumimos que guardas el token en el provider
+    final token = Provider.of<UserProvider>(context).token; 
 
     if (user == null || token == null)
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -267,36 +322,44 @@ class _HomeScreenState extends State<HomeScreen> {
     bool isAdmin = (user.rol == 'ADMIN' || user.rol == 'SUPER_ADMIN');
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: const Color(0xFFF8F9FA),
 
-      // --- 1. AÑADE EL DRAWER AQUÍ (Entre el backgroundColor y el appBar) ---
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Colors.teal),
-              child: Text(
-                'Menú Comunidad',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+            DrawerHeader(
+              decoration: BoxDecoration(color: primaryDark),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Colors.white,
+                    radius: 30,
+                    child: Icon(Icons.person, size: 35, color: primaryDark),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '@${user.username}',
+                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    user.rol == 'PRESIDENTE' ? 'Presidente' : 'Vecino',
+                    style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14),
+                  ),
+                ],
               ),
             ),
-            // La opción de Documentos solo se muestra si es Presidente o Admin
             if (isPresident || isAdmin)
               ListTile(
-                leading: const Icon(Icons.folder_shared, color: Colors.teal),
+                leading: Icon(Icons.folder_shared, color: primaryDark),
                 title: const Text('Administración (Documentos)'),
                 onTap: () {
-                  Navigator.pop(context); // Cierra la barra lateral primero
+                  Navigator.pop(context); 
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => const DocumentosScreen(),
-                    ),
+                    MaterialPageRoute(builder: (context) => const DocumentosScreen()),
                   );
                 },
               ),
@@ -304,74 +367,116 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
 
-      // --- APPBAR (Logo RP y Perfil) ---
+      // --- APPBAR CON TU LOGO Y NUEVO COLOR ---
       appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.teal,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Text(
-                "RP",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Text(
-              "Radio Patio",
-              style: TextStyle(
-                color: Colors.black87,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
+        backgroundColor: primaryLight, 
+        
+        // 👇 Quitamos la sombra difuminada y ponemos tu rayita negra
+        elevation: 0, 
+        shape: const Border(
+          bottom: BorderSide(
+            color: Colors.black, // Color de la raya
+            width: 1.0,          // Grosor (pon 2.0 si la quieres más gorda)
+          ),
         ),
-        backgroundColor: Colors.white,
-        elevation: 1,
+        
+        iconTheme: IconThemeData(color: primaryDark), // Menú oscuro para que se vea en el blanco
 
-        // --- 2. ¡MUY IMPORTANTE! ---
-        // BORRA o COMENTA la siguiente línea. Si dice "false", el icono
-        // de la hamburguesa (las 3 rayitas) no aparecerá.
-        // automaticallyImplyLeading: false,
+        titleSpacing: 0, 
+        title: SizedBox(
+          height: 72,
+          child: Image.asset(
+            'lib/images/logo.png', 
+            fit: BoxFit.contain, 
+            alignment: Alignment.centerLeft,
+          ),
+        ),
+
         actions: [
+          if (_comunidadIdActual != null) 
+            Padding(
+              padding: const EdgeInsets.only(right: 5.0),
+              child: IconButton(
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // Tu icono original (!)
+                    const Icon(Icons.priority_high, color: Colors.orange, size: 28),
+                    if (_numeroIncidencias > 0)
+                      Positioned(
+                        right: -2,
+                        top: -4,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.redAccent,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            '$_numeroIncidencias',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TablonIncidenciasScreen(
+                        comunidadId: _comunidadIdActual!,
+                        tokenJwt: token, 
+                        isPresidenteOrAdmin: isPresident || isAdmin,
+                      ),
+                    ),
+                  ).then((_) {
+                    _cargarNumeroIncidencias(token, _comunidadIdActual!);
+                  });
+                },
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.only(right: 10.0),
             child: PopupMenuButton<String>(
-              icon: const CircleAvatar(
-                backgroundColor: Colors.teal,
-                child: Icon(Icons.person, color: Colors.white),
+              icon: CircleAvatar(
+                backgroundColor: primaryDark.withOpacity(0.1),
+                child: Icon(Icons.person, color: primaryDark),
               ),
               onSelected: (value) => _manejarOpcionesPerfil(value),
               itemBuilder: (BuildContext context) {
-                // ... (Mismo código de menú de perfil que antes)
                 List<PopupMenuEntry<String>> menuItems = [
-                  const PopupMenuItem<String>(
+                  PopupMenuItem<String>(
                     value: 'perfil',
                     child: ListTile(
-                      leading: Icon(Icons.account_circle, color: Colors.teal),
-                      title: Text("Mi Perfil"),
+                      leading: Icon(Icons.account_circle, color: primaryDark),
+                      title: const Text("Mi Perfil"),
                     ),
                   ),
                   const PopupMenuDivider(),
-                  const PopupMenuItem<String>(
+                  PopupMenuItem<String>(
+                    value: 'comunidad',
+                    child: ListTile(
+                      leading: Icon(Icons.people, color: primaryDark),
+                      title: const Text("Ver Comunidad"),
+                    ),
+                  ),
+                  PopupMenuItem<String>(
                     value: 'reservas',
                     child: ListTile(
-                      leading: Icon(Icons.history, color: Colors.orange),
-                      title: Text("Todas las Reservas"),
+                      leading: Icon(Icons.history, color: accentColor), 
+                      title: const Text("Todas las Reservas"),
                     ),
                   ),
                   const PopupMenuItem<String>(
                     value: 'logout',
                     child: ListTile(
-                      leading: Icon(Icons.logout, color: Colors.red),
-                      title: Text("Cerrar Sesión"),
+                      leading: const Icon(Icons.logout, color: Colors.red),
+                      title: const Text("Cerrar Sesión"),
                     ),
                   ),
                 ];
@@ -382,7 +487,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
 
-      // --- CUERPO (Navegación de Fecha y Avisos Reales) ---
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -390,87 +494,82 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // --- SECCIÓN NAVEGACIÓN DE FECHA (CON FLECHAS) ---
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Botón día anterior
-                    IconButton(
-                      icon: const Icon(
-                        Icons.arrow_back_ios,
-                        color: Colors.teal,
-                        size: 20,
+                // --- SECCIÓN NAVEGACIÓN DE FECHA ---
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      )
+                    ]
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.arrow_back_ios, color: primaryDark, size: 20),
+                        onPressed: _irAlDiaAnterior,
                       ),
-                      onPressed: _irAlDiaAnterior,
-                    ),
-                    // Texto de la fecha (ej: Martes, 24 Marzo)
-                    Column(
-                      children: [
-                        Text(
-                          _fechaHeaderFormatted,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                            fontWeight: FontWeight.w500,
+                      Column(
+                        children: [
+                          Text(
+                            _fechaHeaderFormatted,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                        ),
-                        Text(
-                          _esHoy()
-                              ? "Hoy"
-                              : DateFormat(
-                                  'd MMM',
-                                  'es_ES',
-                                ).format(_fechaSeleccionada),
-                          style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                          Text(
+                            _esHoy()
+                                ? "Hoy"
+                                : DateFormat('d MMM', 'es_ES').format(_fechaSeleccionada),
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: primaryDark,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    // Botón día siguiente
-                    IconButton(
-                      icon: const Icon(
-                        Icons.arrow_forward_ios,
-                        color: Colors.teal,
-                        size: 20,
+                        ],
                       ),
-                      onPressed: _irAlDiaSiguiente,
-                    ),
-                  ],
+                      IconButton(
+                        icon: Icon(Icons.arrow_forward_ios, color: primaryDark, size: 20),
+                        onPressed: _irAlDiaSiguiente,
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 25),
 
-                // Subtítulo "Avisos"
                 Row(
                   children: [
-                    Icon(Icons.campaign, color: Colors.redAccent.shade100),
+                    Icon(Icons.campaign, color: primaryDark, size: 28),
                     const SizedBox(width: 8),
-                    const Text(
+                    Text(
                       "Avisos Importantes",
                       style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: primaryDark,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 15),
 
-                // --- CARGA DE AVISOS REALES (FUTUREBUILDER) ---
                 FutureBuilder<List<Aviso>>(
-                  future: _avisoService.getAvisosPorFecha(
-                    _fechaSeleccionada,
-                    token!,
-                  ), // <--- Pasa el token aquí
+                  future: _avisoService.getAvisosPorFecha(_fechaSeleccionada, token!),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
+                      return Center(
                         child: Padding(
-                          padding: EdgeInsets.all(20.0),
-                          child: CircularProgressIndicator(),
+                          padding: const EdgeInsets.all(20.0),
+                          child: CircularProgressIndicator(color: primaryDark),
                         ),
                       );
                     } else if (snapshot.hasError) {
@@ -478,58 +577,51 @@ class _HomeScreenState extends State<HomeScreen> {
                     } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                       return _buildEmptyAvisosState();
                     } else {
-                      // Tenemos avisos reales, los pintamos
                       final avisos = snapshot.data!;
                       return ListView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: avisos.length,
                         itemBuilder: (context, index) {
-                          final aviso = avisos[index];
-                          return _buildAvisoCard(aviso);
+                          return _buildAvisoCard(avisos[index]);
                         },
                       );
                     }
                   },
                 ),
 
-                const SizedBox(height: 100), // Espacio para el FAB
+                const SizedBox(height: 100), 
               ],
             ),
           ),
 
-          // Capa oscura del FAB
           if (_isFabMenuOpen)
             GestureDetector(
               onTap: () => setState(() => _isFabMenuOpen = false),
-              child: Container(color: Colors.black.withOpacity(0.5)),
+              child: Container(color: Colors.black.withOpacity(0.6)), // Fondo más oscuro al abrir menú
             ),
+          Positioned(
+            bottom: 16.0,
+            right: 16.0,
+            child: _buildTwitterStyleFab(isVecinoMember, isPresident, isAdmin, user.username, token),
+          ),
         ],
-      ),
-
-      // --- BOTÓN FLOTANTE (+) TIPO TWITTER DESPLEGABLE ---
-      // Le pasamos el username y el token para la creación de avisos
-      floatingActionButton: _buildTwitterStyleFab(
-        isVecinoMember,
-        isPresident,
-        isAdmin,
-        user.username,
-        token,
       ),
     );
   }
 
-  // --- WIDGETS AUXILIARES DE MAQUETACIÓN ---
-
-  // Tarjeta de aviso maquetada con datos REALES del modelo Aviso
   Widget _buildAvisoCard(Aviso aviso) {
     return Card(
-      elevation: 1,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      elevation: 3,
+      margin: const EdgeInsets.only(bottom: 15),
+      shadowColor: Colors.black.withOpacity(0.2),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: BorderSide(color: Colors.grey.shade200, width: 1), // Borde sutil
+      ),
       color: Colors.white,
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(18.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -539,32 +631,38 @@ class _HomeScreenState extends State<HomeScreen> {
                 Expanded(
                   child: Text(
                     aviso.titulo,
-                    style: const TextStyle(
-                      fontSize: 16,
+                    style: TextStyle(
+                      fontSize: 17,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: primaryDark,
                     ),
                   ),
                 ),
-                // Opcional: Mostrar quién lo creó
                 if (aviso.creadorUsername != null)
-                  Text(
-                    "@${aviso.creadorUsername}",
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: Colors.grey,
-                      fontStyle: FontStyle.italic,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: primaryLight,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      "@${aviso.creadorUsername}",
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: primaryDark,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
               ],
             ),
-            const SizedBox(height: 8),
+            const Divider(height: 20, thickness: 0.5),
             Text(
               aviso.descripcion,
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[800],
-                height: 1.4,
+                height: 1.5,
               ),
             ),
           ],
@@ -575,7 +673,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildEmptyAvisosState() {
     return Container(
-      padding: const EdgeInsets.all(30),
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
@@ -583,20 +681,17 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Column(
         children: [
-          Icon(
-            Icons.check_circle_outline,
-            size: 50,
-            color: Colors.teal.shade200,
-          ),
-          const SizedBox(height: 10),
-          const Text(
+          Icon(Icons.task_alt, size: 60, color: Colors.green.shade300),
+          const SizedBox(height: 15),
+          Text(
             "¡Todo al día!",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: primaryDark),
           ),
+          const SizedBox(height: 5),
           Text(
             "No hay avisos para el día ${DateFormat('d MMM', 'es_ES').format(_fechaSeleccionada)}.",
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
+            style: const TextStyle(color: Colors.grey),
           ),
         ],
       ),
@@ -635,19 +730,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- LÓGICA DEL BOTÓN FLOTANTE DESPLEGABLE (+) ---
-  Widget _buildTwitterStyleFab(
-    bool isMember,
-    bool isPresident,
-    bool isAdmin,
-    String username,
-    String token,
-  ) {
+  Widget _buildTwitterStyleFab(bool isMember, bool isPresident, bool isAdmin, String username, String token) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        // Opciones desplegadas
         if (_isFabMenuOpen) ...[
           if (isMember)
             _buildFabMenuItem(
@@ -665,23 +752,42 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: () {},
             ),
           const SizedBox(height: 15),
-
-          // --- CAMBIO AQUÍ: La opción de crear aviso es SOLO PARA EL PRESIDENTE (y admin) ---
+          if (isMember)
+            _buildFabMenuItem(
+              icon: Icons.build,
+              label: "Reportar Avería",
+              color: Colors.blueGrey,
+              onTap: () {
+                if (_comunidadIdActual != null) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          CrearIncidenciaPage(comunidadId: _comunidadIdActual!),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Aún cargando datos... Inténtalo de nuevo.'),
+                      backgroundColor: accentColor,
+                    ),
+                  );
+                }
+              },
+            ),
+          const SizedBox(height: 15),
           if (isPresident || isAdmin) ...[
             const Divider(indent: 100),
             _buildFabMenuItem(
               icon: Icons.campaign,
               label: "Crear Aviso",
               color: Colors.redAccent,
-              onTap: () => _mostrarFormularioCrearAviso(
-                username,
-                token,
-              ), // Abre formulario
+              onTap: () => _mostrarFormularioCrearAviso(username, token),
             ),
             const SizedBox(height: 15),
           ],
         ],
-        // El botón "+" principal
         FloatingActionButton(
           onPressed: () {
             if (!isMember) {
@@ -690,19 +796,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 MaterialPageRoute(builder: (context) => const UserPage()),
               );
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    "Primero debes crear o unirte a una comunidad.",
-                  ),
-                ),
+                const SnackBar(content: Text("Primero debes crear o unirte a una comunidad.")),
               );
             } else {
               setState(() => _isFabMenuOpen = !_isFabMenuOpen);
             }
           },
-          backgroundColor: Colors.teal,
+          backgroundColor: primaryDark,
           foregroundColor: Colors.white,
-          elevation: 5,
+          elevation: 6,
           child: AnimatedRotation(
             duration: const Duration(milliseconds: 200),
             turns: _isFabMenuOpen ? 0.125 : 0,
@@ -713,56 +815,66 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildFabMenuItem({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    // ... (Mismo código de item del menú FAB que antes)
+  Widget _buildFabMenuItem({required IconData icon, required String label, required Color color, required VoidCallback onTap}) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5)],
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 8, offset: const Offset(0, 3))],
           ),
           child: Text(
             label,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-            ),
+            style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14),
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 15),
         FloatingActionButton.small(
           heroTag: label,
           onPressed: () {
-            setState(() => _isFabMenuOpen = false); // Cierra menú
-            onTap(); // Ejecuta acción
+            setState(() => _isFabMenuOpen = false); 
+            onTap(); 
           },
           backgroundColor: color,
           foregroundColor: Colors.white,
-          child: Icon(icon, size: 20),
+          elevation: 4,
+          child: Icon(icon, size: 22),
         ),
       ],
     );
   }
 
-  // --- LÓGICA DE NAVEGACIÓN DEL MENÚ DE PERFIL ---
   void _manejarOpcionesPerfil(String value) {
-    // ... (Mismo código de menú de perfil que antes)
     switch (value) {
       case 'perfil':
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const UserPage()),
         );
+        break;
+      case 'comunidad':
+        if (_comunidadIdActual != null) {
+          final userProvider = Provider.of<UserProvider>(context, listen: false);
+          bool isPresident = (userProvider.user?.rol == 'PRESIDENTE');
+          
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MiembrosComunidadScreen(
+                comunidadId: _comunidadIdActual!,
+                tokenJwt: userProvider.token!,
+                isPresidente: isPresident,
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Cargando datos de comunidad...')),
+          );
+        }
         break;
       case 'logout':
         Navigator.pushAndRemoveUntil(
