@@ -30,6 +30,10 @@ public class MensajeForo {
     @JoinColumn(name = "autor_username", referencedColumnName = "username", nullable = false)
     private Usuario autor;
 
+    @ManyToOne
+    @JoinColumn(name = "respuesta_a_id")
+    private MensajeForo respuestaA;
+
     @Column(nullable = false)
     private LocalDateTime fechaEnvio;
 

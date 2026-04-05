@@ -16,4 +16,7 @@ public class MensajeDTO {
     private String autorNombre;
     private String autorUsername;
     private LocalDateTime fechaEnvio;
+    private Long respuestaAId;
+    private String respuestaAContenido;
+    private String respuestaAAutor;
 }

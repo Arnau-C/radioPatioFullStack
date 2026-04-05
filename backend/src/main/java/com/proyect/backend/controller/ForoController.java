@@ -23,7 +23,6 @@ public class ForoController {
     private final ForoRepository foroRepository;
     private final UsuarioRepository usuarioRepository;
 
-    // Obtener todos los mensajes de un foro
     @GetMapping("/{foroId}/mensajes")
     public ResponseEntity<List<MensajeDTO>> obtenerMensajes(@PathVariable Long foroId) {
         List<MensajeDTO> mensajes = mensajeRepository.findByForoIdOrderByFechaEnvioAsc(foroId).stream()
@@ -33,27 +32,34 @@ public class ForoController {
                         .autorNombre(m.getAutor().getNombre() + " " + m.getAutor().getApellidos())
                         .autorUsername(m.getAutor().getUsername())
                         .fechaEnvio(m.getFechaEnvio())
+                        .respuestaAId(m.getRespuestaA() != null ? m.getRespuestaA().getId() : null)
+                        .respuestaAContenido(m.getRespuestaA() != null ? m.getRespuestaA().getContenido() : null)
+                        .respuestaAAutor(m.getRespuestaA() != null ? m.getRespuestaA().getAutor().getNombre() : null)
                         .build())
                 .toList();
         return ResponseEntity.ok(mensajes);
     }
 
-    // Publicar un nuevo mensaje
     @PostMapping("/{foroId}/mensajes")
-    public ResponseEntity<?> publicarMensaje(@PathVariable Long foroId, @RequestBody Map<String, String> payload) {
-        String contenido = payload.get("contenido");
-        String username = payload.get("username");
+    public ResponseEntity<?> publicarMensaje(@PathVariable Long foroId, @RequestBody Map<String, Object> payload) {
+        String contenido = (String) payload.get("contenido");
+        String username = (String) payload.get("username");
+        Integer respuestaAId = (Integer) payload.get("respuestaAId");
 
         Foro foro = foroRepository.findById(foroId).orElseThrow();
         Usuario autor = usuarioRepository.findByUsername(username).orElseThrow();
-
-        MensajeForo nuevoMensaje = MensajeForo.builder()
+        
+        MensajeForo.MensajeForoBuilder builder = MensajeForo.builder()
                 .contenido(contenido)
                 .foro(foro)
-                .autor(autor)
-                .build();
+                .autor(autor);
 
-        mensajeRepository.save(nuevoMensaje);
+        if (respuestaAId != null) {
+            MensajeForo padre = mensajeRepository.findById(Long.valueOf(respuestaAId)).orElse(null);
+            builder.respuestaA(padre);
+        }
+
+        mensajeRepository.save(builder.build());
         return ResponseEntity.ok().build();
     }
 }

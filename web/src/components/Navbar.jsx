@@ -1,48 +1,56 @@
-import { Link } from 'react-router-dom';
-import logo from '../assets/logoirem.png'; //
+import { Link, useNavigate } from 'react-router-dom';
+import logo from '../assets/logo.png';
 
 const Navbar = () => {
+  const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user'));
+
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
+
   return (
-    /* bg-orange-50/90: Fondo naranja muy clarito con un toque de transparencia.
-       backdrop-blur-md: Efecto cristal empañado al hacer scroll.
-       border-orange-100: Borde sutil a juego.
-    */
-    <nav className="bg-orange-50/90 backdrop-blur-md border-b border-orange-100 px-8 py-2 flex justify-between items-center sticky top-0 z-50">
-      
-      {/* SECCIÓN DEL LOGO: He aumentado el tamaño considerablemente */}
-      <Link to="/" className="flex items-center gap-4 group">
-        <img 
-          src={logo} 
-          alt="Radio Patio Logo" 
-          /* h-20: Lo hace el doble de grande que antes. 
-             hover:scale-110: Un pequeño efecto al pasar el ratón.
-          */
-          className="h-20 w-auto transition-transform duration-300 group-hover:scale-110" 
-        />
-        {/* Nombre del proyecto en naranja fuerte para que resalte */}
-        <span className="text-3xl font-black text-orange-700 tracking-tighter">
-          Radio Patio
-        </span>
+    <nav className="bg-white border-b border-orange-100 py-4 px-6 flex justify-between items-center sticky top-0 z-50 shadow-sm">
+      <Link to="/" className="flex items-center gap-2">
+        <img src={logo} alt="Logo" className="h-10 w-auto" />
+        <span className="text-xl font-black text-orange-700 tracking-tighter">Radio Patio</span>
       </Link>
-      
-      {/* BOTONES DE NAVEGACIÓN */}
-      <div className="flex items-center gap-6">
-        <Link 
-          to="/login" 
-          className="text-lg font-bold text-orange-800 hover:text-orange-600 transition-colors"
-        >
-          Iniciar Sesión
-        </Link>
-        
-        <Link 
-          to="/registro" 
-          /* bg-orange-600: Botón llamativo que combina con el Hero.
-             rounded-2xl: Bordes redondeados modernos.
-          */
-          className="px-6 py-3 bg-orange-600 text-white font-extrabold rounded-2xl hover:bg-orange-700 transition shadow-md hover:shadow-orange-200"
-        >
-          Registrarse
-        </Link>
+
+      <div className="flex items-center gap-4 md:gap-6">
+        {user ? (
+          <>
+            {/* Botón de Ayuda/Sugerencias más pequeño y discreto */}
+            <Link to="/ayuda" className="text-gray-400 text-sm font-medium hover:text-orange-600 transition">
+              Ayuda
+            </Link>
+            
+            {/* El Panel será lo principal de la comunidad */}
+            <Link to="/foro" className="text-gray-600 font-bold hover:text-orange-600 transition">
+              Mi Panel
+            </Link>
+
+            <button 
+              onClick={handleLogout}
+              className="bg-orange-100 text-orange-700 px-4 py-2 rounded-xl text-sm font-bold hover:bg-orange-200 transition"
+            >
+              Salir
+            </button>
+          </>
+        ) : (
+          <>
+            <Link to="/ayuda" className="text-gray-400 text-sm font-medium hover:text-orange-600 transition">
+              Sugerencias
+            </Link>
+            <Link to="/login" className="text-gray-600 font-bold hover:text-orange-600 transition">Entrar</Link>
+            <Link 
+              to="/registro" 
+              className="bg-orange-600 text-white px-5 py-2 rounded-xl font-bold hover:bg-orange-700 transition shadow-md"
+            >
+              Registro
+            </Link>
+          </>
+        )}
       </div>
     </nav>
   );

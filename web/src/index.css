@@ -10,3 +10,12 @@ body {
   background-color: var(--bg);
 }
 
+@keyframes highlight-fade {
+  0% { background-color: #ffedd5; transform: scale(1.02); } /* Naranja clarito */
+  100% { background-color: transparent; transform: scale(1); }
+}
+
+.resaltar-mensaje {
+  animation: highlight-fade 2s ease-out;
+  z-index: 20;
+}
