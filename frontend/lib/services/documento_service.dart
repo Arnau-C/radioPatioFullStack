@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:frontend/models/carpeta.dart';
 import 'package:frontend/models/documento.dart';
 import 'package:frontend/utils/api_client.dart';
+import 'package:http_parser/http_parser.dart'; // <--- AÑADE ESTA LÍNEA
 
 class DocumentoService {
   final String _baseUrl = '${ApiClient.baseUrl}/documentos';
@@ -40,6 +41,18 @@ class DocumentoService {
       body: jsonEncode({'nombre': nombre, 'comunidadNombre': comunidadNombre}),
     );
     if (response.statusCode != 200) throw Exception('Error al crear carpeta');
+  }
+
+  Future<void> borrarDocumento(int id, String token) async {
+    final url = Uri.parse('$_baseUrl/$id');
+    final response = await http.delete(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode != 200) {
+      final err = jsonDecode(response.body);
+      throw Exception(err['error'] ?? 'Error al borrar el archivo');
+    }
   }
 
   Future<void> renombrarCarpeta(
@@ -97,18 +110,38 @@ class DocumentoService {
     request.fields['carpetaId'] = carpetaId.toString();
     request.fields['username'] = username;
 
-    // Magia para que funcione tanto en Web como en Móvil
+    // Forzamos el tipo de archivo para que el Backend no lo rechace
+    final mimeType = http.ByteStream.fromBytes(
+      utf8.encode('application/pdf'),
+    ).toString();
+
     if (file.bytes != null) {
       request.files.add(
-        http.MultipartFile.fromBytes('file', file.bytes!, filename: file.name),
+        http.MultipartFile.fromBytes(
+          'file',
+          file.bytes!,
+          filename: file.name,
+          contentType: MediaType('application', 'pdf'), // <--- IMPORTANTE
+        ),
       );
     } else if (file.path != null) {
-      request.files.add(await http.MultipartFile.fromPath('file', file.path!));
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'file',
+          file.path!,
+          contentType: MediaType('application', 'pdf'), // <--- IMPORTANTE
+        ),
+      );
     }
 
-    var response = await request.send();
-    if (response.statusCode != 200)
-      throw Exception('Error al subir el archivo');
+    var streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode != 200) {
+      // AQUÍ ESTÁ EL CAMBIO: Ahora leeremos qué error nos manda Java
+      final errorData = jsonDecode(response.body);
+      throw Exception(errorData['error'] ?? 'Error desconocido en el servidor');
+    }
   }
 
   Future<void> moverDocumento(

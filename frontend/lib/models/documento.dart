@@ -11,12 +11,13 @@ class Documento {
 
   factory Documento.fromJson(Map<String, dynamic> json) {
     return Documento(
-      id: json['id'],
-      titulo: json['titulo'],
-      // El backend nos devuelve el objeto Usuario entero en 'subidoPor'
-      creadorUsername: json['subidoPor'] != null
+      id: json['id'] ?? 0,
+      titulo: json['titulo'] ?? 'Sin título',
+      // IMPORTANTE: Accedemos al username de forma segura
+      creadorUsername:
+          (json['subidoPor'] != null && json['subidoPor']['username'] != null)
           ? json['subidoPor']['username']
-          : 'Desconocido',
+          : 'Usuario desconocido',
     );
   }
 }
