@@ -78,13 +78,13 @@ const LandingPage = () => {
           </div>
           <div className="text-center p-6 bg-white/50 rounded-2xl border border-orange-50">
             <div className="text-3xl mb-2">🛠️</div>
-            <h3 className="font-bold text-gray-800">Incidencias</h3>
-            <p className="text-sm text-gray-500">Avisa de averías en tiempo real.</p>
+            <h3 className="font-bold text-gray-800">Avisos</h3>
+            <p className="text-sm text-gray-500">Avisa importantes para los vecinos.</p>
           </div>
           <div className="text-center p-6 bg-white/50 rounded-2xl border border-orange-50">
-            <div className="text-3xl mb-2">📅</div>
-            <h3 className="font-bold text-gray-800">Reservas</h3>
-            <p className="text-sm text-gray-500">Gestiona espacios comunes fácilmente.</p>
+            <div className="text-3xl mb-2">📁</div>
+            <h3 className="font-bold text-gray-800">Subida de archivos</h3>
+            <p className="text-sm text-gray-500">Gestiona tus archivos de manera sencilla.</p>
           </div>
         </div>
       </section>
