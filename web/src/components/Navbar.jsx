@@ -1,19 +1,46 @@
 import { Link } from 'react-router-dom';
-import logo from '../assets/logo.png';
+import logo from '../assets/logo.png'; //
 
 const Navbar = () => {
   return (
-    <nav className="bg-white border-b border-gray-100 px-8 py-4 flex justify-between items-center sticky top-0 z-50">
-      <Link to="/" className="flex items-center gap-3">
-        <img src={logo} alt="Radio Patio Logo" className="h-10 w-auto" />
-        <span className="text-2xl font-extrabold text-blue-700 tracking-tight">Radio Patio</span>
+    /* bg-orange-50/90: Fondo naranja muy clarito con un toque de transparencia.
+       backdrop-blur-md: Efecto cristal empañado al hacer scroll.
+       border-orange-100: Borde sutil a juego.
+    */
+    <nav className="bg-orange-50/90 backdrop-blur-md border-b border-orange-100 px-8 py-2 flex justify-between items-center sticky top-0 z-50">
+      
+      {/* SECCIÓN DEL LOGO: He aumentado el tamaño considerablemente */}
+      <Link to="/" className="flex items-center gap-4 group">
+        <img 
+          src={logo} 
+          alt="Radio Patio Logo" 
+          /* h-20: Lo hace el doble de grande que antes. 
+             hover:scale-110: Un pequeño efecto al pasar el ratón.
+          */
+          className="h-20 w-auto transition-transform duration-300 group-hover:scale-110" 
+        />
+        {/* Nombre del proyecto en naranja fuerte para que resalte */}
+        <span className="text-3xl font-black text-orange-700 tracking-tighter">
+          Radio Patio
+        </span>
       </Link>
       
-      <div className="flex gap-4">
-        <Link to="/login" className="px-5 py-2 font-semibold text-gray-700 hover:text-blue-600 transition">
+      {/* BOTONES DE NAVEGACIÓN */}
+      <div className="flex items-center gap-6">
+        <Link 
+          to="/login" 
+          className="text-lg font-bold text-orange-800 hover:text-orange-600 transition-colors"
+        >
           Iniciar Sesión
         </Link>
-        <Link to="/registro" className="px-5 py-2 bg-blue-600 text-white font-semibold rounded-full hover:bg-blue-700 transition shadow-md">
+        
+        <Link 
+          to="/registro" 
+          /* bg-orange-600: Botón llamativo que combina con el Hero.
+             rounded-2xl: Bordes redondeados modernos.
+          */
+          className="px-6 py-3 bg-orange-600 text-white font-extrabold rounded-2xl hover:bg-orange-700 transition shadow-md hover:shadow-orange-200"
+        >
           Registrarse
         </Link>
       </div>
