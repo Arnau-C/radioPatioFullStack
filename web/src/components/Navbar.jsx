@@ -20,12 +20,11 @@ const Navbar = () => {
       <div className="flex items-center gap-4 md:gap-6">
         {user ? (
           <>
-            {/* Botón de Ayuda/Sugerencias más pequeño y discreto */}
+            {/* Estos enlaces SOLO se ven si el usuario ha iniciado sesión */}
             <Link to="/ayuda" className="text-gray-400 text-sm font-medium hover:text-orange-600 transition">
               Ayuda
             </Link>
             
-            {/* El Panel será lo principal de la comunidad */}
             <Link to="/foro" className="text-gray-600 font-bold hover:text-orange-600 transition">
               Mi Panel
             </Link>
@@ -39,10 +38,10 @@ const Navbar = () => {
           </>
         ) : (
           <>
-            <Link to="/ayuda" className="text-gray-400 text-sm font-medium hover:text-orange-600 transition">
-              Sugerencias
+            {/* Si NO hay usuario, solo mostramos acceso y registro */}
+            <Link to="/login" className="text-gray-600 font-bold hover:text-orange-600 transition">
+              Entrar
             </Link>
-            <Link to="/login" className="text-gray-600 font-bold hover:text-orange-600 transition">Entrar</Link>
             <Link 
               to="/registro" 
               className="bg-orange-600 text-white px-5 py-2 rounded-xl font-bold hover:bg-orange-700 transition shadow-md"

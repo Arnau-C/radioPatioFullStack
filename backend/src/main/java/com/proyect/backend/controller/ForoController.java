@@ -23,7 +23,7 @@ public class ForoController {
     private final ForoRepository foroRepository;
     private final UsuarioRepository usuarioRepository;
 
-   @GetMapping("/{foroId}/mensajes")
+    @GetMapping("/{foroId}/mensajes")
     public ResponseEntity<List<MensajeDTO>> obtenerMensajes(@PathVariable Long foroId) {
         List<MensajeDTO> mensajes = mensajeRepository.findByForoIdOrderByFechaEnvioAsc(foroId).stream()
                 .map(m -> MensajeDTO.builder()
@@ -32,7 +32,6 @@ public class ForoController {
                         .autorNombre(m.getAutor().getNombre() + " " + m.getAutor().getApellidos())
                         .autorUsername(m.getAutor().getUsername())
                         .fechaEnvio(m.getFechaEnvio())
-                        .destacado(m.isDestacado()) // <--- AHORA SÍ SE ENVÍA A LA WEB
                         .respuestaAId(m.getRespuestaA() != null ? m.getRespuestaA().getId() : null)
                         .respuestaAContenido(m.getRespuestaA() != null ? m.getRespuestaA().getContenido() : null)
                         .respuestaAAutor(m.getRespuestaA() != null ? m.getRespuestaA().getAutor().getNombre() : null)
@@ -41,14 +40,33 @@ public class ForoController {
         return ResponseEntity.ok(mensajes);
     }
 
+    @PostMapping("/{foroId}/mensajes")
+    public ResponseEntity<?> enviarMensaje(@PathVariable Long foroId, @RequestBody Map<String, Object> payload) {
+        try {
+            Foro foro = foroRepository.findById(foroId).orElseThrow();
+            Usuario autor = usuarioRepository.findByUsername((String) payload.get("username")).orElseThrow();
+
+            MensajeForo.MensajeForoBuilder builder = MensajeForo.builder()
+                    .contenido((String) payload.get("contenido"))
+                    .foro(foro)
+                    .autor(autor);
+
+            if (payload.get("respuestaAId") != null) {
+                Long rId = Long.valueOf(payload.get("respuestaAId").toString());
+                mensajeRepository.findById(rId).ifPresent(builder::respuestaA);
+            }
+
+            mensajeRepository.save(builder.build());
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error al enviar: " + e.getMessage());
+        }
+    }
+
     @DeleteMapping("/mensajes/{id}")
     public ResponseEntity<?> eliminarMensaje(@PathVariable Long id) {
-        // 1. Buscamos el mensaje
-        MensajeForo mensaje = mensajeRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Mensaje no encontrado"));
+        MensajeForo mensaje = mensajeRepository.findById(id).orElseThrow();
         
-        // 2. IMPORTANTE: Buscamos todos los mensajes que son respuestas a este
-        // y les quitamos la referencia (ponemos respuesta_a_id a null)
         List<MensajeForo> respuestas = mensajeRepository.findAll().stream()
                 .filter(m -> m.getRespuestaA() != null && m.getRespuestaA().getId().equals(id))
                 .toList();
@@ -58,9 +76,7 @@ public class ForoController {
             mensajeRepository.save(r);
         }
 
-        // 3. Ahora que nadie lo referencia, podemos borrarlo sin error de SQL
         mensajeRepository.delete(mensaje);
         return ResponseEntity.ok().build();
     }
-    
 }

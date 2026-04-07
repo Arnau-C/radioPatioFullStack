@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom';
 import logo from '../assets/logo.png';
 
 const LandingPage = () => {
+  // Comprobamos si hay un usuario en el sistema
+  const user = JSON.parse(localStorage.getItem('user'));
+
   return (
     <div className="bg-orange-50 min-h-screen">
       
@@ -26,9 +29,13 @@ const LandingPage = () => {
             </p>
 
             <div className="mt-10">
-              <Link to="/login" className="inline-block bg-orange-600 text-white px-10 py-4 rounded-2xl text-xl font-bold hover:bg-orange-700 transition shadow-lg mb-10">
-                Inicia sesión
-              </Link>
+              {/* Si el usuario ya está dentro, el botón podría llevarle al foro directamente, 
+                  pero mantenemos el de Iniciar Sesión o Registro si prefieres que la landing sea estática */}
+              {!user && (
+                <Link to="/login" className="inline-block bg-orange-600 text-white px-10 py-4 rounded-2xl text-xl font-bold hover:bg-orange-700 transition shadow-lg mb-10">
+                  Inicia sesión
+                </Link>
+              )}
 
               {/* SOBRE EL PROYECTO */}
               <div className="max-w-2xl space-y-4">
@@ -85,22 +92,24 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* NUEVA SECCIÓN: CALL TO ACTION AL BUZÓN */}
-      <section className="py-24 bg-orange-100/30 border-t border-orange-200">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <h2 className="text-4xl font-black text-orange-900 mb-4">¿Tienes alguna idea para mejorar?</h2>
-          <p className="text-lg text-gray-600 mb-10 leading-relaxed">
-            Estamos construyendo Radio Patio para vosotros. Si crees que falta alguna funcionalidad 
-            o has encontrado un error, cuéntanoslo en nuestro foro global.
-          </p>
-          <Link 
-            to="/ayuda" 
-            className="inline-flex items-center gap-3 bg-white text-orange-600 border-2 border-orange-600 px-10 py-5 rounded-2xl font-black text-xl hover:bg-orange-600 hover:text-white transition-all shadow-xl active:scale-95"
-          >
-            <span>📩 Ir al Buzón de Sugerencias</span>
-          </Link>
-        </div>
-      </section>
+      {/* SECCIÓN: CALL TO ACTION AL BUZÓN (SOLO SI ESTÁ LOGUEADO) */}
+      {user && (
+        <section className="py-24 bg-orange-100/30 border-t border-orange-200">
+          <div className="max-w-4xl mx-auto px-6 text-center">
+            <h2 className="text-4xl font-black text-orange-900 mb-4">¿Tienes alguna idea para mejorar?</h2>
+            <p className="text-lg text-gray-600 mb-10 leading-relaxed">
+              Estamos construyendo Radio Patio para vosotros. Si crees que falta alguna funcionalidad 
+              o has encontrado un error, cuéntanoslo en nuestro foro global.
+            </p>
+            <Link 
+              to="/ayuda" 
+              className="inline-flex items-center gap-3 bg-white text-orange-600 border-2 border-orange-600 px-10 py-5 rounded-2xl font-black text-xl hover:bg-orange-600 hover:text-white transition-all shadow-xl active:scale-95"
+            >
+              <span>📩 Ir al Buzón de Sugerencias</span>
+            </Link>
+          </div>
+        </section>
+      )}
 
       {/* FOOTER */}
       <footer className="py-12 text-center border-t border-orange-100">
