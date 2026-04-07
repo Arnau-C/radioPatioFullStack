@@ -1,16 +1,11 @@
 package com.proyect.backend.controller;
 
 import com.proyect.backend.dto.MensajeDTO;
-import com.proyect.backend.model.MensajeForo;
-import com.proyect.backend.model.Foro;
-import com.proyect.backend.model.Usuario;
-import com.proyect.backend.repository.MensajeForoRepository;
-import com.proyect.backend.repository.ForoRepository;
-import com.proyect.backend.repository.UsuarioRepository;
+import com.proyect.backend.model.*;
+import com.proyect.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 import java.util.Map;
 
@@ -25,19 +20,20 @@ public class ForoController {
 
     @GetMapping("/{foroId}/mensajes")
     public ResponseEntity<List<MensajeDTO>> obtenerMensajes(@PathVariable Long foroId) {
-        List<MensajeDTO> mensajes = mensajeRepository.findByForoIdOrderByFechaEnvioAsc(foroId).stream()
+        List<MensajeDTO> lista = mensajeRepository.findByForoIdOrderByFechaEnvioAsc(foroId).stream()
                 .map(m -> MensajeDTO.builder()
                         .id(m.getId())
                         .contenido(m.getContenido())
                         .autorNombre(m.getAutor().getNombre() + " " + m.getAutor().getApellidos())
                         .autorUsername(m.getAutor().getUsername())
                         .fechaEnvio(m.getFechaEnvio())
+                        .destacado(m.isDestacado()) // <--- AHORA SE ENVÍA ESTO
                         .respuestaAId(m.getRespuestaA() != null ? m.getRespuestaA().getId() : null)
                         .respuestaAContenido(m.getRespuestaA() != null ? m.getRespuestaA().getContenido() : null)
                         .respuestaAAutor(m.getRespuestaA() != null ? m.getRespuestaA().getAutor().getNombre() : null)
                         .build())
                 .toList();
-        return ResponseEntity.ok(mensajes);
+        return ResponseEntity.ok(lista);
     }
 
     @PostMapping("/{foroId}/mensajes")
@@ -46,37 +42,46 @@ public class ForoController {
             Foro foro = foroRepository.findById(foroId).orElseThrow();
             Usuario autor = usuarioRepository.findByUsername((String) payload.get("username")).orElseThrow();
 
-            MensajeForo.MensajeForoBuilder builder = MensajeForo.builder()
+            MensajeForo mensaje = MensajeForo.builder()
                     .contenido((String) payload.get("contenido"))
                     .foro(foro)
-                    .autor(autor);
+                    .autor(autor)
+                    .build();
 
             if (payload.get("respuestaAId") != null) {
                 Long rId = Long.valueOf(payload.get("respuestaAId").toString());
-                mensajeRepository.findById(rId).ifPresent(builder::respuestaA);
+                mensajeRepository.findById(rId).ifPresent(mensaje::setRespuestaA);
             }
 
-            mensajeRepository.save(builder.build());
+            mensajeRepository.save(mensaje);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Error al enviar: " + e.getMessage());
+            return ResponseEntity.badRequest().body("Error al enviar");
         }
     }
 
     @DeleteMapping("/mensajes/{id}")
     public ResponseEntity<?> eliminarMensaje(@PathVariable Long id) {
-        MensajeForo mensaje = mensajeRepository.findById(id).orElseThrow();
+        MensajeForo objetivo = mensajeRepository.findById(id).orElseThrow();
         
-        List<MensajeForo> respuestas = mensajeRepository.findAll().stream()
-                .filter(m -> m.getRespuestaA() != null && m.getRespuestaA().getId().equals(id))
-                .toList();
-        
-        for (MensajeForo r : respuestas) {
-            r.setRespuestaA(null);
-            mensajeRepository.save(r);
-        }
+        // LIMPIEZA DE HIJOS: Si otros mensajes responden a este, les quitamos la referencia
+        // para que la base de datos no dé error de "Foreign Key"
+        mensajeRepository.findAll().stream()
+            .filter(m -> m.getRespuestaA() != null && m.getRespuestaA().getId().equals(id))
+            .forEach(hijo -> {
+                hijo.setRespuestaA(null);
+                mensajeRepository.save(hijo);
+            });
 
-        mensajeRepository.delete(mensaje);
+        mensajeRepository.delete(objetivo);
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/mensajes/{id}/destacar")
+    public ResponseEntity<?> toggleDestacar(@PathVariable Long id) {
+        MensajeForo m = mensajeRepository.findById(id).orElseThrow();
+        m.setDestacado(!m.isDestacado());
+        mensajeRepository.save(m);
         return ResponseEntity.ok().build();
     }
 }
