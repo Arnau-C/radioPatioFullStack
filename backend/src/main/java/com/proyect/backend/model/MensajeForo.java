@@ -25,10 +25,18 @@ public class MensajeForo {
     @ManyToOne
     @JoinColumn(name = "foro_id", nullable = false)
     private Foro foro;
+    
+    @Column(nullable = false)
+    @Builder.Default 
+    private boolean destacado = false;
 
     @ManyToOne
     @JoinColumn(name = "autor_username", referencedColumnName = "username", nullable = false)
     private Usuario autor;
+
+    @ManyToOne
+    @JoinColumn(name = "respuesta_a_id")
+    private MensajeForo respuestaA;
 
     @Column(nullable = false)
     private LocalDateTime fechaEnvio;

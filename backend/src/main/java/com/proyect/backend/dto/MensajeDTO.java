@@ -1,0 +1,23 @@
+package com.proyect.backend.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import java.time.LocalDateTime;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class MensajeDTO {
+    private Long id;
+    private String contenido;
+    private String autorNombre;
+    private String autorUsername;
+    private LocalDateTime fechaEnvio;
+    private Long respuestaAId;
+    private String respuestaAContenido;
+    private String respuestaAAutor;
+    private boolean destacado;
+}

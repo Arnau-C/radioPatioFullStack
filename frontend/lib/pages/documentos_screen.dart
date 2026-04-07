@@ -226,7 +226,7 @@ class _DocumentosScreenState extends State<DocumentosScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Administración"),
-        backgroundColor: Colors.teal,
+        backgroundColor: const Color.fromARGB(255, 77, 87, 86),
         foregroundColor: Colors.white,
       ),
       body: _isLoading
@@ -380,13 +380,92 @@ class _DocumentosScreenState extends State<DocumentosScreen> {
                                 },
 
                                 // -------------------------------------------------------
-                                trailing: IconButton(
-                                  icon: const Icon(
-                                    Icons.drive_file_move_outline,
-                                    color: Colors.teal,
-                                  ),
-                                  tooltip: "Mover documento",
-                                  onPressed: () => _moverDocumento(doc),
+                                // Busca tu propiedad 'trailing' y cámbiala por esto:
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize
+                                      .min, // ¡Muy importante para que no explote!
+                                  children: [
+                                    // --- BOTÓN DE MOVER (El que ya tenías) ---
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.drive_file_move_outline,
+                                        color: Colors.teal,
+                                      ),
+                                      tooltip: "Mover documento",
+                                      onPressed: () => _moverDocumento(doc),
+                                    ),
+
+                                    // --- BOTÓN NUEVO: BORRAR ---
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.delete_outline,
+                                        color: Colors.redAccent,
+                                      ),
+                                      tooltip: "Borrar documento",
+                                      onPressed: () async {
+                                        // 1. Pedir confirmación al usuario
+                                        final confirmar = await showDialog<bool>(
+                                          context: context,
+                                          builder: (ctx) => AlertDialog(
+                                            title: const Text("¿Borrar PDF?"),
+                                            content: Text(
+                                              "¿Estás seguro de que quieres eliminar '${doc.titulo}'?",
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.pop(ctx, false),
+                                                child: const Text("Cancelar"),
+                                              ),
+                                              ElevatedButton(
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                                onPressed: () =>
+                                                    Navigator.pop(ctx, true),
+                                                child: const Text(
+                                                  "Borrar",
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+
+                                        // 2. Si confirma, llamamos al servicio
+                                        if (confirmar == true) {
+                                          try {
+                                            setState(() => _isLoading = true);
+                                            final token =
+                                                Provider.of<UserProvider>(
+                                                  context,
+                                                  listen: false,
+                                                ).token!;
+
+                                            // Llamamos a la función borrar que creamos en el paso anterior
+                                            await _docService.borrarDocumento(
+                                              doc.id,
+                                              token,
+                                            );
+
+                                            _mostrarMensaje(
+                                              "Archivo eliminado correctamente",
+                                              Colors.green,
+                                            );
+                                            await _cargarDatos(); // Recargamos la lista
+                                          } catch (e) {
+                                            _mostrarMensaje(
+                                              "Error al borrar: $e",
+                                              Colors.red,
+                                            );
+                                            setState(() => _isLoading = false);
+                                          }
+                                        }
+                                      },
+                                    ),
+                                  ],
                                 ),
                               ),
                             );
