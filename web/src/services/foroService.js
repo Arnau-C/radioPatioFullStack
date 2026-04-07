@@ -24,12 +24,22 @@ const foroService = {
     }
   },
 
+  
+
   enviarMensaje: async (foroId, username, contenido, respuestaAId = null) => {
     await axios.post(`${API_URL}/${foroId}/mensajes`, {
       username,
       contenido,
       respuestaAId
     }, { headers: getAuthHeaders() });
+  },
+  
+  eliminarMensaje: async (id) => {
+    await axios.delete(`${API_URL}/mensajes/${id}`, { headers: getAuthHeaders() });
+  },
+
+  toggleDestacado: async (id) => {
+    await axios.patch(`${API_URL}/mensajes/${id}/destacar`, {}, { headers: getAuthHeaders() });
   }
 };
 

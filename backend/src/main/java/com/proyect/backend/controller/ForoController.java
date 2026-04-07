@@ -62,4 +62,18 @@ public class ForoController {
         mensajeRepository.save(builder.build());
         return ResponseEntity.ok().build();
     }
+
+    @DeleteMapping("/mensajes/{id}")
+    public ResponseEntity<?> eliminarMensaje(@PathVariable Long id) {
+        mensajeRepository.deleteById(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/mensajes/{id}/destacar")
+    public ResponseEntity<?> toggleDestacar(@PathVariable Long id) {
+        MensajeForo mensaje = mensajeRepository.findById(id).orElseThrow();
+        mensaje.setDestacado(!mensaje.isDestacado()); // Cambia el estado (si es true a false y viceversa)
+        mensajeRepository.save(mensaje);
+        return ResponseEntity.ok().build();
+    }
 }

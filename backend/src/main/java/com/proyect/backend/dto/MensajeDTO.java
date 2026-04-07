@@ -19,4 +19,5 @@ public class MensajeDTO {
     private Long respuestaAId;
     private String respuestaAContenido;
     private String respuestaAAutor;
+    private boolean destacado;
 }

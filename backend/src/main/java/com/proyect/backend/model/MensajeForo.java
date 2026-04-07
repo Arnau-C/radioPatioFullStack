@@ -25,6 +25,9 @@ public class MensajeForo {
     @ManyToOne
     @JoinColumn(name = "foro_id", nullable = false)
     private Foro foro;
+    
+    @Column(nullable = false)
+    private boolean destacado = false;
 
     @ManyToOne
     @JoinColumn(name = "autor_username", referencedColumnName = "username", nullable = false)
