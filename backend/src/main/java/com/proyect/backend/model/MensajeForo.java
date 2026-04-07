@@ -27,6 +27,7 @@ public class MensajeForo {
     private Foro foro;
     
     @Column(nullable = false)
+    @Builder.Default 
     private boolean destacado = false;
 
     @ManyToOne
