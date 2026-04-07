@@ -36,6 +36,8 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource())) // 2. Activar configuración CORS
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll() // Permitir login y registro sin token
+                .requestMatchers("/api/comunidades/**").permitAll()
+                .requestMatchers("/api/superadmin/**").hasAuthority("SUPER_ADMIN")
                 .anyRequest().authenticated() // Todo lo demás requiere token
             )
             .sessionManagement(session -> session

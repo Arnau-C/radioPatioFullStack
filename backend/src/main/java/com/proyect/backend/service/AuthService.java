@@ -11,16 +11,21 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
+import javax.management.relation.RoleList;
+
 @Service
 @RequiredArgsConstructor
 // Servicio de Autenticación con Lógica de Bloqueo y Auditoría de Logs
 public class AuthService {
+
+    private final UserDetailsService userDetailsService;
     
     private final UsuarioRepository repository;
     private final LoginLogRepository loginLogRepository;
@@ -63,6 +68,26 @@ public class AuthService {
                 .rol(user.getRol())
                 .build();
     }
+
+    public void registerByAdmin(RegisterRequest request){
+        if (repository.findByUsername(request.getUsername()).isPresent()) {
+        throw new IllegalArgumentException("El nombre de usuario ya existe");
+        }
+        String rolAsignado = request.getRol();
+        Usuario user = Usuario.builder()
+            .username(request.getUsername())
+            .password(passwordEncoder.encode(request.getPassword()))
+            .nombre(request.getNombre())
+            .apellidos(request.getApellidos())
+            .email(request.getEmail())
+            .rol(rolAsignado)
+            .cuentaBloqueada(false)
+            .intentosFallidos(0)
+            .build();
+
+        repository.save(user);
+    }
+
 
     // MÉTODO DE LOGIN (CON AUDITORÍA DE LOGS)
     public AuthResponse login(LoginRequest request){

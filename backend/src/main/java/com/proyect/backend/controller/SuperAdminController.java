@@ -1,14 +1,18 @@
 package com.proyect.backend.controller;
 
+import com.proyect.backend.dto.RegisterRequest;
 import com.proyect.backend.dto.UserUpdateRequest;
 import com.proyect.backend.model.Usuario;
 import com.proyect.backend.repository.UsuarioRepository;
+import com.proyect.backend.service.AuthService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+
 
 //Controlador REST para operaciones de Super Admin: listar, eliminar y modificar usuarios.
 
@@ -19,11 +23,18 @@ import java.util.List;
 public class SuperAdminController {
 
     private final UsuarioRepository repository;
+    private final AuthService authService;
 
     //LISTAR TODOS LOS USUARIOS
     @GetMapping("/users")
     public ResponseEntity<List<Usuario>> getAllUsers() {
-        return ResponseEntity.ok(repository.findAll());
+        List<Usuario> usuarios = repository.findAll();
+        for (Usuario u : usuarios) {
+        u.setLogs(null);      // <--- IMPORTANTE: No enviamos los logs al listado
+        u.setComunidad(null); // <--- IMPORTANTE: Evitamos bucles con la comunidad
+    }
+    
+    return ResponseEntity.ok(usuarios);
     }
 
     // ELIMINAR USUARIO
@@ -72,4 +83,10 @@ public class SuperAdminController {
 
         return ResponseEntity.ok(repository.save(user));
     }
+    @PostMapping("/users/create")
+    public ResponseEntity<String> createUser(@RequestBody RegisterRequest request) {
+        authService.registerByAdmin(request);
+        return ResponseEntity.ok("Usuario creado correctamente");
+    }
+    
 }
