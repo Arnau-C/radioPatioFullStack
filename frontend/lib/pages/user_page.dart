@@ -19,14 +19,14 @@ class UserPage extends StatefulWidget {
 class _UserPageState extends State<UserPage> {
   String? codigoInvitacionActual;
   String? nombreComunidadActual;
-
+  int? comunidadIdActual;
   @override
   void initState() {
     super.initState();
     // Leemos el usuario del Provider de forma segura en initState
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final user = Provider.of<UserProvider>(context, listen: false).user;
-      if (user != null && user.rol == 'PRESIDENTE') {
+      if (user != null && (user.rol == 'PRESIDENTE' || user.rol == 'VECINO')) {
         obtenerCodigoComunidad(user.username);
       }
     });
@@ -41,6 +41,7 @@ class _UserPageState extends State<UserPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
+          comunidadIdActual = data['id'];
           codigoInvitacionActual = data['codigoInvitacion'];
           nombreComunidadActual = data['nombre'];
         });
@@ -87,6 +88,7 @@ class _UserPageState extends State<UserPage> {
             ),
           );
           // Forzamos a recargar los datos del usuario para que se actualice el rol real
+          obtenerCodigoComunidad(username);
           setState(() {});
         }
       } else {

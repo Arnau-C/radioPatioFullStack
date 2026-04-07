@@ -18,7 +18,7 @@ class UserProvider with ChangeNotifier {
 
   void setUser(Map<String, dynamic> userData) {
     _user = AppUser.fromJson(userData);
-
+    
     // 3. EXTRAE EL TOKEN DEL MAPA (Asegúrate de que la clave sea 'token')
     _token = userData['token'];
 

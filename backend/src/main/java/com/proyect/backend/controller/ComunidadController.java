@@ -5,14 +5,17 @@ import com.proyect.backend.model.Comunidad;
 import com.proyect.backend.model.Usuario;
 import com.proyect.backend.repository.ComunidadRepository;
 import com.proyect.backend.repository.UsuarioRepository;
+import com.proyect.backend.service.ComunidadService;
 import com.proyect.backend.service.InvitationService;
 
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 
@@ -26,6 +29,7 @@ public class ComunidadController {
     private final ComunidadRepository comunidadRepository;
     private final UsuarioRepository usuarioRepository;
     private final InvitationService invitationService;
+    private final ComunidadService comunidadService;
 
     @PostMapping("/crear")
     public ResponseEntity<?> crearComunidad(@RequestBody ComunidadRequest request) {
@@ -97,10 +101,32 @@ public class ComunidadController {
         }
 
         // Devolvemos el código y el nombre para pintarlos en Flutter
-        Map<String, String> respuesta = new HashMap<>();
+        Map<String, Object> respuesta = new HashMap<>();
+        respuesta.put("id", usuario.getComunidad().getId());respuesta.put("id", usuario.getComunidad().getId());
+        
         respuesta.put("nombre", usuario.getComunidad().getNombre());
         respuesta.put("codigoInvitacion", usuario.getComunidad().getCodigoInvitacion());
         
         return ResponseEntity.ok(respuesta);
     }
+
+    @GetMapping("/{comunidadId}/miembros")
+    public ResponseEntity<List<Usuario>> obtenerMiembros(@PathVariable Long comunidadId) {
+        // En tu servicio tendrás que llamar a usuarioRepository.findByComunidadId(comunidadId)
+        List<Usuario> miembros = comunidadService.obtenerMiembros(comunidadId);
+        return ResponseEntity.ok(miembros);
+    }
+
+    @PutMapping("/{comunidadId}/miembros/{usernameExpulsado}/expulsar")
+    public ResponseEntity<Void> expulsarMiembro(
+            @PathVariable Long comunidadId,
+            @PathVariable String usernameExpulsado,
+            Authentication authentication) {
+        
+        String usernamePresidente = authentication.getName();
+        comunidadService.expulsarMiembro(comunidadId, usernameExpulsado, usernamePresidente);
+        
+        return ResponseEntity.ok().build();
+    }
+    
 }
