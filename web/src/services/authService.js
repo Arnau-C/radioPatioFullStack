@@ -1,7 +1,9 @@
 // web/src/services/authService.js
 import axios from 'axios';
 
-const API_URL = 'https://radiopatiofullstackbackend.onrender.com/api/auth';
+//const API_URL = 'https://radiopatiofullstackbackend.onrender.com/api/auth';
+
+const API_URL = 'http://localhost:8080/api/auth';
 
 const authService = {
   login: async (username, password) => {

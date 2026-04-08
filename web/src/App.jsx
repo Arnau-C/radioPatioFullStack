@@ -4,6 +4,8 @@ import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForoPage from './pages/ForoPage'; // Este es el que ahora llamaremos "Ayuda"
+import ComunidadPage from './pages/ComunidadPage';
+import ChatComunidadPage from './pages/ChatComunidadPage';
 
 function App() {
   return (
@@ -13,6 +15,8 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/registro" element={<RegisterPage />} />
+        <Route path="/comunidad" element={<ComunidadPage />} />
+<Route path="/comunidad/foro" element={<ChatComunidadPage />} />
         {/* Cambiamos la ruta de la página de sugerencias/info a /ayuda */}
         <Route path="/ayuda" element={<ForoPage />} />
         {/* Dejamos /foro libre para la futura sección de comunidad propia */}

@@ -3,8 +3,10 @@ package com.proyect.backend.service;
 import com.proyect.backend.dto.AuthResponse;
 import com.proyect.backend.dto.LoginRequest;
 import com.proyect.backend.dto.RegisterRequest;
+import com.proyect.backend.model.Foro;
 import com.proyect.backend.model.LoginLog; // <--- NUEVO IMPORT
 import com.proyect.backend.model.Usuario;
+import com.proyect.backend.repository.ForoRepository;
 import com.proyect.backend.repository.LoginLogRepository; // <--- NUEVO IMPORT
 import com.proyect.backend.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +34,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
-
+private final ForoRepository foroRepository;
     // Metódos del servicio, incluyendo registro, login, eliminación y actualización de usuarios
 
     // MÉTODO DE REGISTRO DE USUARIO
@@ -127,6 +129,14 @@ public class AuthService {
 
             // [LOG] Registramos el éxito
             registrarLog(user, sistema, true, null);
+            Long foroId = null;
+            if (user.getComunidad() != null) {
+                foroId = foroRepository.findByComunidadId(user.getComunidad().getId())
+                        .map(Foro::getId)
+                        .orElse(null);
+            }
+
+            // 2. Generamos Token
 
             // Generamos Token
             var jwtToken = jwtService.generateToken(user);
@@ -138,6 +148,7 @@ public class AuthService {
                     .apellidos(user.getApellidos())
                     .email(user.getEmail())
                     .rol(user.getRol())
+                    .foroId(foroId)
                     .build();
 
         } catch (BadCredentialsException e) {

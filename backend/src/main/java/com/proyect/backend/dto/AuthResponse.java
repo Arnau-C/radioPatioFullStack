@@ -17,5 +17,7 @@ public class AuthResponse {
     private String apellidos;
     private String email;
     private String rol;
+    private Long foroId;
     private Long id; 
+    
 }

@@ -1,10 +1,8 @@
 package com.proyect.backend.controller;
 
 import com.proyect.backend.dto.ComunidadRequest;
-import com.proyect.backend.model.Comunidad;
-import com.proyect.backend.model.Usuario;
-import com.proyect.backend.repository.ComunidadRepository;
-import com.proyect.backend.repository.UsuarioRepository;
+import com.proyect.backend.model.*; // Importamos Foro
+import com.proyect.backend.repository.*; // Importamos ForoRepository
 import com.proyect.backend.service.ComunidadService;
 import com.proyect.backend.service.InvitationService;
 
@@ -18,43 +16,50 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-
 @RestController
 @RequestMapping("/api/comunidades")
 @CrossOrigin(origins = "*")
 @RequiredArgsConstructor
-
 public class ComunidadController {
 
     private final ComunidadRepository comunidadRepository;
     private final UsuarioRepository usuarioRepository;
     private final InvitationService invitationService;
     private final ComunidadService comunidadService;
+    private final ForoRepository foroRepository; // <--- AÑADIDO PARA EL FORO
 
     @PostMapping("/crear")
     public ResponseEntity<?> crearComunidad(@RequestBody ComunidadRequest request) {
-        // 1. Buscamos al usuario (el creador será el presidente)
         Usuario presidente = usuarioRepository.findByUsername(request.getPresidenteUsername())
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
         if(presidente.getComunidad() != null){
             return ResponseEntity.badRequest().body("Este usuario ya pertenece a una comunidad");
         }        
-        // 2. Creamos la Comunidad (SIN CÓDIGO)
+
         Comunidad nuevaComunidad = Comunidad.builder()
                 .nombre(request.getNombre())
-                .direccion(request.getDireccion()) // Asegúrate de que en el DTO se llame getDireccion
+                .direccion(request.getDireccion())
                 .presidente(presidente)
                 .fechaCreacion(LocalDateTime.now())
                 .build();
 
-        // 3. Guardamos
         Comunidad comunidadCreada = comunidadRepository.save(nuevaComunidad);
         String codigo = invitationService.generarCodigoComunidad(comunidadCreada.getId());
 
         presidente.setComunidad(comunidadCreada);
         presidente.setRol("PRESIDENTE");
         usuarioRepository.save(presidente);
+
+        // --- BLOQUE AÑADIDO: CREACIÓN DEL FORO ---
+        Foro foroComunidad = Foro.builder()
+                .titulo("Foro Vecinal - " + comunidadCreada.getNombre())
+                .descripcion("Chat oficial de la comunidad")
+                .comunidad(comunidadCreada)
+                .fechaCreacion(LocalDateTime.now())
+                .build();
+        foroRepository.save(foroComunidad);
+        // ------------------------------------------
 
         Map<String, Object> respuesta = new HashMap<>();
         respuesta.put("mensaje", "Comunidad creada con éxito");
