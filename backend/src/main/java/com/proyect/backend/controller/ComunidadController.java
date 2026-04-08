@@ -45,6 +45,14 @@ public class ComunidadController {
                 .build();
 
         Comunidad comunidadCreada = comunidadRepository.save(nuevaComunidad);
+        Foro foroAutomatico = Foro.builder()
+            .titulo("Foro Vecinal - " + comunidadCreada.getNombre())
+            .descripcion("Espacio privado de comunicación")
+            .comunidad(comunidadCreada) 
+            .fechaCreacion(LocalDateTime.now())
+            .build();
+    
+    foroRepository.save(foroAutomatico);
         String codigo = invitationService.generarCodigoComunidad(comunidadCreada.getId());
 
         presidente.setComunidad(comunidadCreada);

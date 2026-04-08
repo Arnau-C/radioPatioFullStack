@@ -9,6 +9,7 @@ import com.proyect.backend.repository.*;
 
 import lombok.RequiredArgsConstructor;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -54,5 +55,19 @@ public class DataInitializer implements CommandLineRunner {
                     .build());
             System.out.println("✅ Foro de Comunidad creado");
         }
+        List<Comunidad> todas = comunidadRepository.findAll();
+for (Comunidad com : todas) {
+    boolean tieneForo = foroRepository.findByComunidadId(com.getId()).isPresent();
+    
+    if (!tieneForo) {
+        foroRepository.save(Foro.builder()
+                .titulo("Foro de " + com.getNombre())
+                .descripcion("Chat comunitario")
+                .comunidad(com) // <--- Aquí creamos el vínculo que falta
+                .fechaCreacion(LocalDateTime.now())
+                .build());
+        System.out.println("✅ Foro recuperado para la comunidad: " + com.getNombre());
+    }
+}
     }
 }
