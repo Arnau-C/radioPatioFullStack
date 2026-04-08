@@ -36,12 +36,20 @@ const authService = {
       throw error.response ? error.response.data : new Error('Error al registrar');
     }
   },
-  updateProfile: async (username, userData) => {
-    const response = await axios.put(`${API_URL}/api/auth/update/${username}`, userData);
+ updateProfile: async (username, userData) => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    const token = user?.token;
+
     
-    const currentLocal = JSON.parse(localStorage.getItem('user'));
-    const updatedLocal = { ...currentLocal, ...response.data };
-    localStorage.setItem('user', JSON.stringify(updatedLocal));
+    const response = await axios.put(`${API_URL}/update/${username}`, userData, {
+      headers: {
+        'Authorization': `Bearer ${token}` 
+      }
+    });
+    
+    // 3. Actualizamos el localStorage manteniendo el token antiguo
+    const updatedUser = { ...user, ...response.data };
+    localStorage.setItem('user', JSON.stringify(updatedUser));
     
     return response.data;
 },
