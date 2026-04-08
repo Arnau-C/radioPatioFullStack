@@ -36,10 +36,21 @@ const authService = {
       throw error.response ? error.response.data : new Error('Error al registrar');
     }
   },
+  updateProfile: async (username, userData) => {
+    const response = await axios.put(`${API_URL}/api/auth/update/${username}`, userData);
+    
+    const currentLocal = JSON.parse(localStorage.getItem('user'));
+    const updatedLocal = { ...currentLocal, ...response.data };
+    localStorage.setItem('user', JSON.stringify(updatedLocal));
+    
+    return response.data;
+},
 
   logout: () => {
     localStorage.removeItem('user');
   }
+
+  
 };
 
 export default authService;

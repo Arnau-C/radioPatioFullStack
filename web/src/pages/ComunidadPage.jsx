@@ -1,15 +1,15 @@
+import { useState } from 'react'; 
 import { useNavigate } from 'react-router-dom';
 
 const ComunidadPage = () => {
   const navigate = useNavigate();
-  // Recuperamos el usuario del localStorage para verificar su rol
+  const [menuOpen, setMenuOpen] = useState(false); 
+  
   const user = JSON.parse(localStorage.getItem('user'));
 
-  // Lógica de control: Verificamos si el Rol es VECINO o PRESIDENTE
-  // Si es "USER", significa que aún no tiene comunidad vinculada
+  const esPresidente = user?.rol === 'PRESIDENTE';
   const esMiembroComunidad = user && (user.rol === 'VECINO' || user.rol === 'PRESIDENTE');
 
-  // CASO A: El usuario NO es miembro de una comunidad todavía
   if (!esMiembroComunidad) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
@@ -21,7 +21,7 @@ const ComunidadPage = () => {
           </div>
           <h2 className="text-2xl font-black text-slate-800 mb-4">No tienes comunidad</h2>
           <p className="text-slate-500 mb-8 leading-relaxed italic text-sm">
-            Lo siento no estas dentro de ninguna comunidad.
+            Lo siento, no estás dentro de ninguna comunidad.
           </p>
           <button 
             onClick={() => navigate('/')}
@@ -51,15 +51,59 @@ const ComunidadPage = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 p-8 animate-in fade-in duration-700">
-      <header className="max-w-6xl mx-auto mb-12">
-        <h1 className="text-4xl font-black text-slate-800">Mi Comunidad</h1>
-        <div className="flex items-center gap-2 mt-2">
+      <header className="max-w-6xl mx-auto mb-12 flex justify-between items-start relative">
+        <div>
+          <h1 className="text-4xl font-black text-slate-800">Mi Comunidad</h1>
+          <div className="flex items-center gap-2 mt-2">
             <span className="bg-orange-100 text-orange-600 text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest">
                 {user.rol}
             </span>
             <p className="text-slate-500 font-medium uppercase tracking-widest text-xs">
-                Gestión y comunicación vecinal
+                {user.nombre} {user.apellidos}
             </p>
+          </div>
+        </div>
+
+        <div className="relative">
+          <button 
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="p-4 bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-md hover:border-orange-200 transition-all text-slate-600 focus:outline-none"
+          >
+            <svg className={`w-6 h-6 transition-transform ${menuOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
+          {menuOpen && (
+            <div className="absolute right-0 mt-4 w-64 bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 p-4 z-50 animate-in fade-in slide-in-from-top-4 duration-200">
+              <div className="px-4 py-3 border-b border-slate-50 mb-2">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Configuración</p>
+              </div>
+              
+              <button 
+                onClick={() => navigate('/perfil')}
+                className="w-full text-left p-4 hover:bg-orange-50 rounded-2xl transition-colors flex items-center gap-3 group"
+              >
+                <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center text-orange-600 group-hover:scale-110 transition-transform">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <span className="text-sm font-bold text-slate-700">Ajustes de Perfil</span>
+              </button>
+
+              {esPresidente && (
+                <button className="w-full text-left p-4 hover:bg-blue-50 rounded-2xl transition-colors flex items-center gap-3 group mt-1">
+                  <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  </div>
+                  <span className="text-sm font-bold text-slate-700">Gestión Comunidad</span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </header>
 
@@ -85,10 +129,6 @@ const ComunidadPage = () => {
             </div>
           </div>
         ))}
-
-        <div className="bg-slate-100/50 p-8 rounded-[2.5rem] border border-dashed border-slate-300 flex flex-col items-center justify-center text-center opacity-60">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Próximas funciones</p>
-        </div>
       </main>
     </div>
   );

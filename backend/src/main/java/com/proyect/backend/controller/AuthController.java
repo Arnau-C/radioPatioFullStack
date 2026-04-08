@@ -2,7 +2,9 @@ package com.proyect.backend.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -12,7 +14,8 @@ import com.proyect.backend.service.AuthService;
 import jakarta.validation.Valid;
 
 import com.proyect.backend.dto.LoginRequest; 
-import com.proyect.backend.dto.RegisterRequest; 
+import com.proyect.backend.dto.RegisterRequest;
+import com.proyect.backend.model.Usuario;
 import com.proyect.backend.dto.AuthResponse;
 
 import lombok.RequiredArgsConstructor;
@@ -66,5 +69,15 @@ public class AuthController {
             return ResponseEntity.status(404).body("Error al modificar: " + e.getMessage());
         }
     }
+
+    @PutMapping("/update/{username}")
+public ResponseEntity<?> updateProfile(@PathVariable String username, @RequestBody RegisterRequest request) {
+    try {
+        Usuario actualizado = authService.actualizarUsuario(username, request);
+        return ResponseEntity.ok(actualizado);
+    } catch (Exception e) {
+        return ResponseEntity.badRequest().body("Error al actualizar: " + e.getMessage());
+    }
+}
 
 }
