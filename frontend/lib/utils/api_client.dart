@@ -12,6 +12,6 @@ class ApiClient {
     //   host = '10.0.2.2'; // Esto solo sirve para el emulador, no para el móvil real
     // }
     // http://127.0.0.1:8080/api
-    return 'http://127.0.0.1:8080/api';
+    return 'https://radiopatiofullstackbackend.onrender.com/api';
   }
 }
