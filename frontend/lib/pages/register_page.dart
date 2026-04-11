@@ -310,32 +310,36 @@ class _RegisterPageState
                                           return Column(
                                             crossAxisAlignment: CrossAxisAlignment.end,
                                             children: [
-                                              Container(
-                                                height: 4,
-                                                width: double.infinity,
-                                                decoration: BoxDecoration(
-                                                  color: Colors.grey.shade300,
-                                                  borderRadius: BorderRadius.circular(2),
-                                                ),
-                                                child: FractionallySizedBox(
-                                                  alignment: Alignment.centerLeft,
-                                                  widthFactor: value,
-                                                  child: AnimatedContainer(
-                                                    duration: const Duration(milliseconds: 300),
-                                                    decoration: BoxDecoration(
-                                                      color: color,
-                                                      borderRadius: BorderRadius.circular(2),
+                                              Row(
+                                                children: List.generate(3, (index) {
+                                                  // La barra tiene 3 fases: 0.3, 0.6, 1.0
+                                                  final isFilled = value > (index * 0.3);
+                                                  return Expanded(
+                                                    child: AnimatedContainer(
+                                                      duration: const Duration(milliseconds: 400),
+                                                      curve: Curves.easeInOutCubic,
+                                                      margin: EdgeInsets.only(right: index < 2 ? 6.0 : 0),
+                                                      height: 5,
+                                                      decoration: BoxDecoration(
+                                                        color: isFilled ? color : Colors.grey.shade300,
+                                                        borderRadius: BorderRadius.circular(10),
+                                                      ),
                                                     ),
-                                                  ),
-                                                ),
+                                                  );
+                                                }),
                                               ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                text,
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: color,
+                                              const SizedBox(height: 6),
+                                              AnimatedSwitcher(
+                                                duration: const Duration(milliseconds: 300),
+                                                child: Text(
+                                                  text,
+                                                  key: ValueKey<String>(text),
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w700,
+                                                    letterSpacing: 0.3,
+                                                    color: color,
+                                                  ),
                                                 ),
                                               ),
                                             ],
