@@ -8,6 +8,7 @@ import 'dart:ui';
 import 'package:provider/provider.dart';
 import 'package:frontend/pages/home_screen.dart';
 import 'package:frontend/components/glass_background.dart';
+import 'package:frontend/components/animated_button.dart';
 
 import 'package:frontend/pages/super_admin_page.dart';
 import 'package:frontend/pages/user_page.dart';
@@ -217,52 +218,10 @@ class _LoginPageState extends State<LoginPage> {
 
                                 const SizedBox(height: 10),
 
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 50,
-                                  child: ElevatedButton(
-                                    onPressed: provider.isLoading ? null : _handleLogin,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      shadowColor: Colors.transparent,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(15),
-                                      ),
-                                    ),
-                                    child: Ink(
-                                      decoration: BoxDecoration(
-                                        gradient: const LinearGradient(
-                                          colors: [Color(0xFF001E35), Color(0xFF00335A)],
-                                          begin: Alignment.centerLeft,
-                                          end: Alignment.centerRight,
-                                        ),
-                                        borderRadius: BorderRadius.circular(15),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: const Color(0xFF001E35).withOpacity(0.3),
-                                            blurRadius: 8,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Container(
-                                        alignment: Alignment.center,
-                                        child: provider.isLoading
-                                            ? const CircularProgressIndicator(
-                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                              )
-                                            : const Text(
-                                                'Iniciar Sesión',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold,
-                                                  letterSpacing: 0.5,
-                                                ),
-                                              ),
-                                      ),
-                                    ),
-                                  ),
+                                AnimatedButton(
+                                  text: 'Iniciar Sesión',
+                                  isLoading: provider.isLoading,
+                                  onTap: provider.isLoading ? null : _handleLogin,
                                 ),
                               ],
                             ),

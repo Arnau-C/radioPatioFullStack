@@ -95,13 +95,19 @@ class _MyTextFieldState extends State<MyTextField> {
           filled: true,
           hintText: widget.hintText,
           prefixIcon: widget.prefixIcon != null 
-              ? Icon(widget.prefixIcon, color: Colors.black54, size: 20) 
+              ? Icon(widget.prefixIcon, color: Colors.black87, size: 20) 
               : null,
           contentPadding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 20.0),
           hintStyle: TextStyle(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black87.withValues(alpha: 0.6),
             fontSize: 14,
+            fontWeight: FontWeight.w500,
           ),
+        ),
+        style: const TextStyle(
+          color: Colors.black87,
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );

@@ -7,6 +7,7 @@ import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/utils/validators.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/components/glass_background.dart';
+import 'package:frontend/components/animated_button.dart';
 
 /// [RegisterPage]
 ///
@@ -398,58 +399,12 @@ class _RegisterPageState
                                         ),
                                       ),
 
-                                    // Botón de registro.
-                                    SizedBox(
-                                      width: double.infinity,
-                                      height: 55,
-                                      child: ElevatedButton(
-                                        // Deshabilitamos el botón si está cargando.
-                                        onPressed: provider.isLoading
-                                            ? null
-                                            : _handleRegister,
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.transparent,
-                                          shadowColor: Colors.transparent,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(15),
-                                          ),
-                                        ),
-                                        // Mostramos un indicador de carga o el texto del botón.
-                                        child: Ink(
-                                          decoration: BoxDecoration(
-                                            gradient: const LinearGradient(
-                                              colors: [Color(0xFF001E35), Color(0xFF00335A)],
-                                              begin: Alignment.centerLeft,
-                                              end: Alignment.centerRight,
-                                            ),
-                                            borderRadius: BorderRadius.circular(15),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: const Color(0xFF001E35).withOpacity(0.3),
-                                                blurRadius: 8,
-                                                offset: const Offset(0, 4),
-                                              ),
-                                            ],
-                                          ),
-                                          child: Container(
-                                            alignment: Alignment.center,
-                                            child: provider.isLoading
-                                                ? const CircularProgressIndicator(
-                                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                                  )
-                                                : const Text(
-                                                    'Registrarse',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 18,
-                                                      fontWeight: FontWeight.bold,
-                                                      letterSpacing: 0.5,
-                                                    ),
-                                                  ),
-                                            ), // end Container
-                                          ), // end Ink
-                                        ), // end ElevatedButton
-                                      ), // end SizedBox
+                                    // Botón de registro animado.
+                                    AnimatedButton(
+                                      text: 'Registrarse',
+                                      isLoading: provider.isLoading,
+                                      onTap: provider.isLoading ? null : _handleRegister,
+                                    ),
                                   ], // end Column children
                                 ), // end Column
                               ); // end Form
