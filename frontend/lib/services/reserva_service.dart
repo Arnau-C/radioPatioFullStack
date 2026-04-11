@@ -15,7 +15,7 @@ class ReservaService {
     String token,
   ) async {
     final url = Uri.parse(
-      '${ApiClient.baseUrl}/api/reservas',
+      '${ApiClient.baseUrl}/reservas',
     );
 
     try {
@@ -70,6 +70,44 @@ class ReservaService {
       throw ReservaException(
         "No se pudo conectar con el servidor.",
       );
+    }
+  }
+
+  Future<List<Reserva>> obtenerReservasPorRecurso(int recursoId, String token) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/reservas/recurso/$recursoId');
+
+    final response = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+      return data.map((item) => Reserva.fromJson(item)).toList();
+    } else {
+      throw Exception("Error al cargar reservas del recurso.");
+    }
+  }
+
+  Future<List<Reserva>> obtenerReservasPorComunidad(int comunidadId, String token) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/reservas/comunidad/$comunidadId');
+
+    final response = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+      return data.map((item) => Reserva.fromJson(item)).toList();
+    } else {
+      throw Exception("Error al cargar reservas de la comunidad.");
     }
   }
 }

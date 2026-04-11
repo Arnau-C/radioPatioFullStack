@@ -18,6 +18,9 @@ import 'package:frontend/pages/user_page.dart';
 import 'package:frontend/providers/user_provider.dart';
 import 'package:frontend/services/aviso_service.dart';
 import 'package:frontend/pages/documentos_screen.dart';
+import 'package:frontend/pages/lista_reservas_screen.dart';
+import 'package:frontend/pages/president_panel_screen.dart';
+import 'package:frontend/pages/reserva_espacios_screen.dart';
 
 class HomeScreen
     extends StatefulWidget {
@@ -506,199 +509,13 @@ class _HomeScreenState
                     foregroundColor:
                         Colors.white,
                   ),
-              child: const Text(
-                "CREAR AVISO",
-              ),
+              child: const Text("CREAR AVISO"),
             ),
           ],
         ),
       ),
     );
   }
-
-  void _mostrarDialogoReserva(
-    String username,
-    String token,
-  ) {
-    // Valores por defecto (Ej: reservar para mañana a las 10:00)
-    DateTime inicio = DateTime.now()
-        .add(const Duration(days: 1))
-        .copyWith(
-          hour: 10,
-          minute: 0,
-          second: 0,
-          millisecond: 0,
-        );
-    DateTime fin = inicio.add(
-      const Duration(hours: 1),
-    );
-    int recursoSeleccionado =
-        1; // Asumimos ID 1 para la Pista de Pádel por ahora
-
-    final ReservaService
-    _reservaService = ReservaService();
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(
-                  20,
-                ),
-          ),
-          title: Row(
-            children: [
-              Icon(
-                Icons.event_available,
-                color: Colors.orange,
-              ),
-              const SizedBox(width: 10),
-              const Text(
-                "Nueva Reserva",
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize:
-                MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<
-                int
-              >(
-                value:
-                    recursoSeleccionado,
-                decoration:
-                    const InputDecoration(
-                      labelText:
-                          "Selecciona el Recurso",
-                    ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 1,
-                    child: Text(
-                      "Pista de Pádel",
-                    ),
-                  ),
-                  DropdownMenuItem(
-                    value: 2,
-                    child: Text(
-                      "Sala Polivalente",
-                    ),
-                  ),
-                ],
-                onChanged: (val) {
-                  if (val != null)
-                    setDialogState(
-                      () =>
-                          recursoSeleccionado =
-                              val,
-                    );
-                },
-              ),
-              const SizedBox(
-                height: 20,
-              ),
-              Text(
-                "Inicio: ${DateFormat('dd/MM/yy HH:mm').format(inicio)}",
-              ),
-              // Aquí podrías añadir botones para seleccionar hora de inicio y fin
-              const SizedBox(
-                height: 10,
-              ),
-              Text(
-                "Fin: ${DateFormat('dd/MM/yy HH:mm').format(fin)}",
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () =>
-                  Navigator.pop(
-                    context,
-                  ),
-              child: const Text(
-                "Cancelar",
-                style: TextStyle(
-                  color: Colors.grey,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                try {
-                  final nuevaReserva =
-                      Reserva(
-                        recursoId:
-                            recursoSeleccionado,
-                        usuarioUsername:
-                            username,
-                        fechaInicio:
-                            inicio,
-                        fechaFin: fin,
-                      );
-
-                  await _reservaService
-                      .crearReserva(
-                        nuevaReserva,
-                        token,
-                      );
-
-                  if (mounted) {
-                    Navigator.pop(
-                      context,
-                    );
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          "¡Reserva confirmada!",
-                        ),
-                        backgroundColor:
-                            Colors
-                                .green,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    // ¡Aquí es donde salta nuestro error de solapamiento (409)!
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          e
-                                  is ReservaException
-                              ? e.message
-                              : "Error desconocido",
-                        ),
-                        backgroundColor:
-                            Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              style:
-                  ElevatedButton.styleFrom(
-                    backgroundColor:
-                        primaryDark,
-                    foregroundColor:
-                        Colors.white,
-                  ),
-              child: const Text(
-                "RESERVAR",
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final user =
@@ -790,7 +607,6 @@ class _HomeScreenState
                 ],
               ),
             ),
-            if (isPresident || isAdmin)
               ListTile(
                 leading: Icon(
                   Icons.folder_shared,
@@ -800,14 +616,30 @@ class _HomeScreenState
                   'Administración (Documentos)',
                 ),
                 onTap: () {
-                  Navigator.pop(
-                    context,
-                  );
+                  Navigator.pop(context);
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) =>
-                          const DocumentosScreen(),
+                      builder: (context) => const DocumentosScreen(),
+                    ),
+                  );
+                },
+              ),
+            if (isPresident)
+              ListTile(
+                leading: Icon(
+                  Icons.admin_panel_settings,
+                  color: primaryDark,
+                ),
+                title: const Text(
+                  'Panel de Presidente (Recursos)',
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PresidentPanelScreen(),
                     ),
                   );
                 },
@@ -1472,11 +1304,17 @@ class _HomeScreenState
                   Icons.event_available,
               label: "Reservar zona",
               color: Colors.orange,
-              onTap: () =>
-                  _mostrarDialogoReserva(
-                    username,
-                    token,
-                  ),
+              onTap: () {
+                setState(() => _isFabMenuOpen = false);
+                if (_comunidadIdActual != null) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ReservaEspaciosScreen(comunidadId: _comunidadIdActual!),
+                    ),
+                  );
+                }
+              },
             ),
           const SizedBox(height: 15),
           if (isMember)
@@ -1686,6 +1524,20 @@ class _HomeScreenState
                 'Cargando datos de comunidad...',
               ),
             ),
+          );
+        }
+        break;
+      case 'reservas':
+        if (_comunidadIdActual != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ListaReservasScreen(comunidadId: _comunidadIdActual!),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Cargando datos de comunidad...')),
           );
         }
         break;
