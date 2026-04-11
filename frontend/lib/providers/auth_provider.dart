@@ -23,26 +23,9 @@ class AuthProvider with ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  // Mensajes de error específicos para cada campo del formulario.
-  // El patrón private/public (ej. _nombreError/nombreError) asegura que
-  // desde fuera de la clase solo se pueda leer el estado, no modificarlo.
-  String? _nombreError;
-  String? get nombreError => _nombreError;
-
-  String? _apellidosError;
-  String? get apellidosError => _apellidosError;
-
-  String? _emailError;
-  String? get emailError => _emailError;
-
-  String? _usernameError;
-  String? get usernameError => _usernameError;
-
-  String? _passwordError;
-  String? get passwordError => _passwordError;
-
-  String? _confirmPasswordError;
-  String? get confirmPasswordError => _confirmPasswordError;
+  // Mensaje de error general para mostrar en snackbars si el backend falla.
+  String? _errorMessage;
+  String? get errorMessage => _errorMessage;
 
   // Mensaje de éxito general para operaciones como un registro exitoso.
   String? _successMessage;
@@ -50,57 +33,26 @@ class AuthProvider with ChangeNotifier {
 
   // --- MÉTODOS PÚBLICOS ---
 
-  /// Limpia todos los mensajes de error y éxito.
-  ///
-  /// Se llama típicamente antes de iniciar una nueva operación de login/registro
-  /// o cuando el usuario empieza a escribir en un campo, para ofrecer una
-  /// experiencia de usuario más limpia.
-  void clearAllMessages() {
-    _nombreError = null;
-    _apellidosError = null;
-    _emailError = null;
-    _usernameError = null;
-    _passwordError = null;
-    _confirmPasswordError = null;
+  /// Limpia los mensajes.
+  void clearMessages() {
+    _errorMessage = null;
     _successMessage = null;
-    notifyListeners(); // Notifica a los listeners para que la UI se actualice.
+    notifyListeners();
   }
 
   /// Gestiona el proceso de inicio de sesión.
   Future<Map<String, dynamic>?> login(String username, String password) async {
-    clearAllMessages();
-
-    // 1. Validación en el cliente (rápida y síncrona).
-    _usernameError = Validators.validateNotEmpty(username, 'usuario');
-    _passwordError = Validators.validateNotEmpty(password, 'contraseña');
-
-    if (_usernameError != null || _passwordError != null) {
-      notifyListeners(); // Muestra los errores de validación en la UI.
-      return null;
-    }
-
-    // 2. Inicia el estado de carga.
+    clearMessages();
     _isLoading = true;
     notifyListeners();
 
-    // 3. Llama al servicio de autenticación.
     try {
       final userData = await _authService.login(username, password);
-      return userData; // Devuelve los datos del usuario en caso de éxito.
+      return userData; 
     } catch (e) {
-      // 4. Manejo de errores desde el backend.
-      String errorMessage = e.toString().replaceFirst('Exception: ', '');
-      String msgLower = errorMessage.toLowerCase();
-
-      // Intenta asignar el error al campo más apropiado.
-      if (msgLower.contains('usuario') || msgLower.contains('user')) {
-        _usernameError = errorMessage;
-      } else {
-        _passwordError = errorMessage;
-      }
-      return null; // Devuelve nulo en caso de error.
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      return null;
     } finally {
-      // 5. Finaliza el estado de carga, tanto en éxito como en error.
       _isLoading = false;
       notifyListeners();
     }
@@ -113,63 +65,26 @@ class AuthProvider with ChangeNotifier {
     required String email,
     required String username,
     required String password,
-    required String confirmPassword,
   }) async {
-    clearAllMessages();
-
-    // 1. Validación en el cliente para todos los campos.
-    _nombreError = Validators.validateNotEmpty(nombre, 'nombre');
-    _apellidosError = Validators.validateNotEmpty(apellidos, 'apellidos');
-    _emailError = Validators.validateEmail(email);
-    _usernameError = Validators.validateNotEmpty(username, 'usuario');
-    _passwordError = Validators.validatePassword(password);
-    _confirmPasswordError =
-        Validators.validateConfirmPassword(password, confirmPassword);
-
-    if (_nombreError != null ||
-        _apellidosError != null ||
-        _emailError != null ||
-        _usernameError != null ||
-        _passwordError != null ||
-        _confirmPasswordError != null) {
-      notifyListeners(); // Muestra los errores en la UI.
-      return null;
-    }
-
-    // 2. Inicia el estado de carga.
+    clearMessages();
     _isLoading = true;
     notifyListeners();
 
-    // 3. Llama al servicio de registro.
     try {
       final user = AppUser(
         nombre: nombre,
         apellidos: apellidos,
         email: email,
         username: username,
-        rol: 'USER', // Por defecto, los nuevos usuarios tienen rol 'USER'.
+        rol: 'USER',
       );
       final userData = await _authService.register(user, password);
       _successMessage = "¡Cuenta creada con éxito!";
       return userData;
     } catch (e) {
-      // 4. Manejo de errores del backend.
-      String errorMessage = e.toString().replaceFirst('Exception: ', '');
-      String msgLower = errorMessage.toLowerCase();
-
-      if (msgLower.contains('usuario') || msgLower.contains('username')) {
-        _usernameError = errorMessage;
-      } else if (msgLower.contains('email') || msgLower.contains('correo')) {
-        _emailError = errorMessage;
-      } else if (msgLower.contains('password') || msgLower.contains('contraseña')) {
-        _passwordError = errorMessage;
-      } else {
-        // Un error genérico que no se puede asignar a un campo específico.
-        _confirmPasswordError = errorMessage;
-      }
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
       return null;
     } finally {
-      // 5. Finaliza el estado de carga.
       _isLoading = false;
       notifyListeners();
     }

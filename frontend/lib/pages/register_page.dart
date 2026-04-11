@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/components/textfield.dart';
 import 'package:frontend/providers/auth_provider.dart';
+import 'package:frontend/utils/validators.dart';
 import 'package:provider/provider.dart';
 
 /// [RegisterPage]
@@ -26,7 +27,7 @@ class RegisterPage
 class _RegisterPageState
     extends State<RegisterPage> {
   // Controladores para cada campo de texto del formulario.
-  // Permiten acceder y gestionar el texto que el usuario introduce.
+  final _formKey = GlobalKey<FormState>();
   final _nombreController =
       TextEditingController();
   final _apellidosController =
@@ -40,6 +41,9 @@ class _RegisterPageState
   final _confirmPasswordController =
       TextEditingController();
 
+  // Notificador reactivo para la contraseña
+  final ValueNotifier<String> _passwordNotifier = ValueNotifier<String>('');
+
   // Instancia del proveedor de autenticación para gestionar la lógica de registro.
   late AuthProvider _authProvider;
 
@@ -50,39 +54,15 @@ class _RegisterPageState
   @override
   void initState() {
     super.initState();
-    // Obtenemos la instancia de AuthProvider usando Provider.
-    // listen: false porque solo necesitamos la instancia para llamar a sus métodos,
-    // no para redibujar este widget cuando el proveedor cambie.
     _authProvider =
         Provider.of<AuthProvider>(
           context,
           listen: false,
         );
 
-    // Añadimos listeners a los controladores.
-    // Cuando el usuario escriba en cualquier campo, se llamará a `clearAllMessages`.
-    // Esto hace que los mensajes de error o éxito desaparezcan en cuanto el usuario
-    // empieza a corregir los datos, mejorando la experiencia de usuario.
-    _nombreController.addListener(
-      _authProvider.clearAllMessages,
-    );
-    _apellidosController.addListener(
-      _authProvider.clearAllMessages,
-    );
-    _emailController.addListener(
-      _authProvider.clearAllMessages,
-    );
-    _usernameController.addListener(
-      _authProvider.clearAllMessages,
-    );
     _passwordController.addListener(
-      _authProvider.clearAllMessages,
+      () => _passwordNotifier.value = _passwordController.text,
     );
-    _confirmPasswordController
-        .addListener(
-          _authProvider
-              .clearAllMessages,
-        );
   }
 
   /// [dispose]
@@ -97,15 +77,42 @@ class _RegisterPageState
     _emailController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController
-        .dispose();
+    _confirmPasswordController.dispose();
+    _passwordNotifier.dispose();
     super.dispose();
   }
 
-  /// [_handleRegister]
-  ///
+  /// Calcula el nivel de fuerza de la contraseña y retorna el color y el progreso
+  Map<String, dynamic> _calculatePasswordStrength(String password) {
+    if (password.isEmpty) {
+      return {'color': Colors.transparent, 'value': 0.0, 'text': ''};
+    }
+    
+    // Si cumple los mínimos requeridos (no devuelve error), es Fuerte por defecto.
+    if (Validators.validatePassword(password) == null) {
+      return {'color': Colors.green, 'value': 1.0, 'text': 'Fuerte'};
+    }
+    
+    double strength = 0.0;
+    
+    if (password.length >= 6) strength += 0.3;
+    if (password.length >= 8) strength += 0.3;
+    if (RegExp(r'[A-Z]').hasMatch(password)) strength += 0.2;
+    if (RegExp(r'[0-9]').hasMatch(password)) strength += 0.2;
+
+    if (strength <= 0.4) {
+      return {'color': Colors.red, 'value': 0.3, 'text': 'Débil'};
+    } else {
+      return {'color': Colors.orange, 'value': 0.6, 'text': 'Media'};
+    }
+  }
+
   /// Gestiona el proceso de registro cuando el usuario pulsa el botón.
   Future<void> _handleRegister() async {
+    // Autenticacion Reactiva Local
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
     // Llama al método de registro del AuthProvider con los datos de los controladores.
     final userData = await _authProvider
         .register(
@@ -118,9 +125,6 @@ class _RegisterPageState
               _usernameController.text,
           password:
               _passwordController.text,
-          confirmPassword:
-              _confirmPasswordController
-                  .text,
         );
 
     // Si el registro fue exitoso (userData no es nulo) y el widget sigue "montado"
@@ -153,8 +157,7 @@ class _RegisterPageState
       // 2. Navegamos de vuelta a la página de inicio de sesión.
       // Utilizamos pop para volver a la ruta anterior de navegación.
       if (mounted) {
-        _authProvider
-            .clearAllMessages();
+        _authProvider.clearMessages();
         Navigator.pop(context);
       }
     }
@@ -239,10 +242,12 @@ class _RegisterPageState
                                 provider,
                                 child,
                               ) {
-                                return Column(
-                                  mainAxisSize:
-                                      MainAxisSize.min,
-                                  children: [
+                                return Form(
+                                  key: _formKey,
+                                  child: Column(
+                                    mainAxisSize:
+                                        MainAxisSize.min,
+                                    children: [
                                     // Título del formulario.
                                     const Text(
                                       'Crear Cuenta',
@@ -264,56 +269,107 @@ class _RegisterPageState
                                       controller: _nombreController,
                                       hintText: 'Nombre',
                                       obscureText: false,
-                                      errorMsg: provider.nombreError,
+                                      validator: (val) => Validators.validateNotEmpty(val, 'nombre'),
                                     ),
-                                    const SizedBox(
-                                      height: 12,
-                                    ),
+                                    const SizedBox(height: 12),
                                     MyTextField(
                                       controller: _apellidosController,
                                       hintText: 'Apellidos',
                                       obscureText: false,
-                                      errorMsg: provider.apellidosError,
+                                      validator: (val) => Validators.validateNotEmpty(val, 'apellidos'),
                                     ),
-                                    const SizedBox(
-                                      height: 12,
-                                    ),
+                                    const SizedBox(height: 12),
                                     MyTextField(
                                       controller: _emailController,
                                       hintText: 'Email',
                                       obscureText: false,
-                                      errorMsg: provider.emailError,
+                                      validator: (val) => Validators.validateEmail(val),
                                     ),
-                                    const SizedBox(
-                                      height: 12,
-                                    ),
+                                    const SizedBox(height: 12),
                                     MyTextField(
                                       controller: _usernameController,
                                       hintText: 'Nombre de usuario',
                                       obscureText: false,
-                                      errorMsg: provider.usernameError,
+                                      validator: (val) => Validators.validateNotEmpty(val, 'usuario'),
                                     ),
-                                    const SizedBox(
-                                      height: 12,
+                                    const SizedBox(height: 12),
+
+                                    // Widget reactivo para mostrar la fuerza de la contraseña
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 25.0),
+                                      child: ValueListenableBuilder<String>(
+                                        valueListenable: _passwordNotifier,
+                                        builder: (context, password, child) {
+                                          final strengthData = _calculatePasswordStrength(password);
+                                          final double value = strengthData['value'];
+                                          final Color color = strengthData['color'];
+                                          final String text = strengthData['text'];
+                                          
+                                          if (password.isEmpty) return const SizedBox.shrink();
+
+                                          return Column(
+                                            crossAxisAlignment: CrossAxisAlignment.end,
+                                            children: [
+                                              Container(
+                                                height: 4,
+                                                width: double.infinity,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.grey.shade300,
+                                                  borderRadius: BorderRadius.circular(2),
+                                                ),
+                                                child: FractionallySizedBox(
+                                                  alignment: Alignment.centerLeft,
+                                                  widthFactor: value,
+                                                  child: AnimatedContainer(
+                                                    duration: const Duration(milliseconds: 300),
+                                                    decoration: BoxDecoration(
+                                                      color: color,
+                                                      borderRadius: BorderRadius.circular(2),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                text,
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: color,
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      ),
                                     ),
+                                    const SizedBox(height: 6),
                                     MyTextField(
                                       controller: _passwordController,
                                       hintText: 'Contraseña',
                                       obscureText: true,
-                                      errorMsg: provider.passwordError,
+                                      validateOnChange: true,
+                                      validator: (val) => Validators.validatePassword(val),
                                     ),
-                                    const SizedBox(
-                                      height: 12,
-                                    ),
+                                    const SizedBox(height: 12),
                                     MyTextField(
                                       controller: _confirmPasswordController,
                                       hintText: 'Confirmar Contraseña',
                                       obscureText: true,
-                                      errorMsg: provider.confirmPasswordError,
+                                      validator: (val) => Validators.validateConfirmPassword(_passwordController.text, val),
                                     ),
-                                    const SizedBox(
-                                      height: 30,
-                                    ),
+                                    const SizedBox(height: 20),
+
+                                    // Display de errores globales asíncronos devueltos por Spring Boot
+                                    if (provider.errorMessage != null)
+                                      Padding(
+                                        padding: const EdgeInsets.only(bottom: 15),
+                                        child: Text(
+                                          provider.errorMessage!,
+                                          style: const TextStyle(color: Colors.red, fontSize: 13, fontWeight: FontWeight.bold),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
 
                                     // Botón de registro.
                                     SizedBox(
@@ -356,6 +412,7 @@ class _RegisterPageState
                                       ),
                                     ),
                                   ],
+                                ),
                                 );
                               },
                         ),

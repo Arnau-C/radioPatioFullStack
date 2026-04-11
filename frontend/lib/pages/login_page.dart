@@ -3,6 +3,7 @@ import 'package:frontend/components/textfield.dart';
 import 'package:frontend/pages/register_page.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/user_provider.dart';
+import 'package:frontend/utils/validators.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend/pages/home_screen.dart';
 
@@ -27,6 +28,7 @@ class LoginPage extends StatefulWidget {
 /// Gestiona la lógica y el estado de la [LoginPage].
 class _LoginPageState extends State<LoginPage> {
   // Controladores para los campos de texto de usuario y contraseña.
+  final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
 
@@ -39,14 +41,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
-    // Obtenemos la instancia de AuthProvider sin escuchar cambios, ya que solo
-    // la usaremos para llamar a sus métodos.
     _authProvider = Provider.of<AuthProvider>(context, listen: false);
-
-    // Añadimos listeners para limpiar los mensajes de error/éxito
-    // en cuanto el usuario empieza a escribir de nuevo.
-    _usernameController.addListener(_authProvider.clearAllMessages);
-    _passwordController.addListener(_authProvider.clearAllMessages);
   }
 
   /// [dispose]
@@ -60,10 +55,12 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  /// [_handleLogin]
-  ///
   /// Gestiona el proceso de inicio de sesión.
   Future<void> _handleLogin() async {
+    // Validar form local antes de enviar
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
     // Llama al método de login del proveedor con los datos introducidos.
     final userData = await _authProvider.login(
       _usernameController.text,
@@ -145,8 +142,10 @@ class _LoginPageState extends State<LoginPage> {
                         // si hay cambios (ej: mostrar errores o un loader).
                         child: Consumer<AuthProvider>(
                           builder: (context, provider, child) {
-                            return Column(
-                              children: [
+                            return Form(
+                              key: _formKey,
+                              child: Column(
+                                children: [
                                 // Título del formulario.
                                 const Text(
                                   'Bienvenido de nuevo',
@@ -163,14 +162,14 @@ class _LoginPageState extends State<LoginPage> {
                                   controller: _usernameController,
                                   hintText: 'Nombre de usuario',
                                   obscureText: false,
-                                  errorMsg: provider.usernameError,
+                                  validator: (val) => Validators.validateNotEmpty(val, 'usuario'),
                                 ),
                                 const SizedBox(height: 12),
                                 MyTextField(
                                   controller: _passwordController,
                                   hintText: 'Contraseña',
                                   obscureText: true,
-                                  errorMsg: provider.passwordError,
+                                  validator: (val) => Validators.validateNotEmpty(val, 'contraseña'),
                                 ),
                                 const SizedBox(height: 8),
 
@@ -182,7 +181,19 @@ class _LoginPageState extends State<LoginPage> {
                                     style: TextStyle(color: Colors.grey[600]),
                                   ),
                                 ),
-                                const SizedBox(height: 20),
+                                const SizedBox(height: 10),
+
+                                if (provider.errorMessage != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 10),
+                                    child: Text(
+                                      provider.errorMessage!,
+                                      style: const TextStyle(color: Colors.red, fontSize: 13, fontWeight: FontWeight.bold),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+
+                                const SizedBox(height: 10),
 
                                 // Botón de inicio de sesión.
                                 SizedBox(
@@ -219,6 +230,7 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                 ),
                               ],
+                             ),
                             );
                           },
                         ),

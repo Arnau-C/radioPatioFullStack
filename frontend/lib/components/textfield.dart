@@ -1,32 +1,60 @@
 import 'package:flutter/material.dart';
 
-class MyTextField
-    extends StatelessWidget {
-  final TextEditingController
-  controller;
+class MyTextField extends StatefulWidget {
+  final TextEditingController controller;
   final String hintText;
   final bool obscureText;
-  // Nueva variable para recibir el mensaje de error (puede ser null si no hay error)
-  final String? errorMsg;
+  final String? Function(String?)? validator;
+  final bool validateOnChange;
 
   const MyTextField({
     super.key,
     required this.controller,
     required this.hintText,
     required this.obscureText,
-    this.errorMsg, // No es 'required' porque al principio no habrá error
+    this.validator,
+    this.validateOnChange = false,
   });
+
+  @override
+  State<MyTextField> createState() => _MyTextFieldState();
+}
+
+class _MyTextFieldState extends State<MyTextField> {
+  late FocusNode _focusNode;
+  bool _hasInteracted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode();
+    _focusNode.addListener(() {
+      if (!_focusNode.hasFocus && !_hasInteracted) {
+        setState(() {
+          _hasInteracted = true;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(
-            horizontal: 25.0,
-          ),
-      child: TextField(
-        controller: controller,
-        obscureText: obscureText,
+      padding: const EdgeInsets.symmetric(horizontal: 25.0),
+      child: TextFormField(
+        controller: widget.controller,
+        obscureText: widget.obscureText,
+        validator: widget.validator,
+        focusNode: _focusNode,
+        autovalidateMode: (widget.validateOnChange || _hasInteracted)
+            ? AutovalidateMode.onUserInteraction
+            : AutovalidateMode.disabled,
         decoration: InputDecoration(
           // Estilos Base
           enabledBorder:
@@ -81,8 +109,7 @@ class MyTextField
               ),
 
           // Mensaje de Error (NUEVO)
-          errorText:
-              errorMsg, // Si esto tiene texto, Flutter activa el modo error
+          // errorText: Ya no manual, TextFormField se encarga
           errorStyle: const TextStyle(
             // Personalizamos para que se lea bien
             color: Colors.redAccent,
@@ -94,7 +121,7 @@ class MyTextField
           fillColor:
               Colors.grey.shade200,
           filled: true,
-          hintText: hintText,
+          hintText: widget.hintText,
           hintStyle: const TextStyle(
             color: Colors.grey,
           ),
