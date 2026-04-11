@@ -1,10 +1,12 @@
 // ignore_for_file: unused_field
 
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:frontend/components/textfield.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/utils/validators.dart';
 import 'package:provider/provider.dart';
+import 'package:frontend/components/glass_background.dart';
 
 /// [RegisterPage]
 ///
@@ -169,16 +171,13 @@ class _RegisterPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Usamos un Container con un degradado para el fondo de la pantalla.
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFDF9C88),
-              Color(0xFFFDE8E1),
-            ],
+          image: DecorationImage(
+            image: AssetImage('assets/images/login_bg.png'),
+            fit: BoxFit.cover,
           ),
         ),
         child: SafeArea(
@@ -216,15 +215,34 @@ class _RegisterPageState
                     ),
 
                     // Tarjeta principal que contiene el formulario.
-                    Card(
-                      elevation: 8,
-                      shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(
-                              25,
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(30),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.white.withValues(alpha: 0.25),
+                                Colors.white.withValues(alpha: 0.05),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                      ),
-                      child: Padding(
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.3),
+                              width: 1.0,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 30,
+                                spreadRadius: -5,
+                              )
+                            ]
+                          ),
+                          child: Padding(
                         padding:
                             const EdgeInsets.symmetric(
                               horizontal:
@@ -264,11 +282,11 @@ class _RegisterPageState
                                     ),
 
                                     // Campos de texto personalizados para cada dato.
-                                    // El parámetro `errorMsg` se obtiene del AuthProvider.
                                     MyTextField(
                                       controller: _nombreController,
                                       hintText: 'Nombre',
                                       obscureText: false,
+                                      prefixIcon: Icons.person_outline,
                                       validator: (val) => Validators.validateNotEmpty(val, 'nombre'),
                                     ),
                                     const SizedBox(height: 12),
@@ -276,6 +294,7 @@ class _RegisterPageState
                                       controller: _apellidosController,
                                       hintText: 'Apellidos',
                                       obscureText: false,
+                                      prefixIcon: Icons.badge_outlined,
                                       validator: (val) => Validators.validateNotEmpty(val, 'apellidos'),
                                     ),
                                     const SizedBox(height: 12),
@@ -283,6 +302,7 @@ class _RegisterPageState
                                       controller: _emailController,
                                       hintText: 'Email',
                                       obscureText: false,
+                                      prefixIcon: Icons.email_outlined,
                                       validator: (val) => Validators.validateEmail(val),
                                     ),
                                     const SizedBox(height: 12),
@@ -290,6 +310,7 @@ class _RegisterPageState
                                       controller: _usernameController,
                                       hintText: 'Nombre de usuario',
                                       obscureText: false,
+                                      prefixIcon: Icons.account_circle_outlined,
                                       validator: (val) => Validators.validateNotEmpty(val, 'usuario'),
                                     ),
                                     const SizedBox(height: 12),
@@ -353,6 +374,7 @@ class _RegisterPageState
                                       hintText: 'Contraseña',
                                       obscureText: true,
                                       validateOnChange: true,
+                                      prefixIcon: Icons.lock_outline,
                                       validator: (val) => Validators.validatePassword(val),
                                     ),
                                     const SizedBox(height: 12),
@@ -360,6 +382,7 @@ class _RegisterPageState
                                       controller: _confirmPasswordController,
                                       hintText: 'Confirmar Contraseña',
                                       obscureText: true,
+                                      prefixIcon: Icons.lock_reset_outlined,
                                       validator: (val) => Validators.validateConfirmPassword(_passwordController.text, val),
                                     ),
                                     const SizedBox(height: 20),
@@ -385,43 +408,57 @@ class _RegisterPageState
                                             ? null
                                             : _handleRegister,
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(
-                                            0xFF001E35,
-                                          ),
+                                          backgroundColor: Colors.transparent,
+                                          shadowColor: Colors.transparent,
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              15,
-                                            ),
+                                            borderRadius: BorderRadius.circular(15),
                                           ),
-                                          elevation: 5,
                                         ),
                                         // Mostramos un indicador de carga o el texto del botón.
-                                        child: provider.isLoading
-                                            ? const CircularProgressIndicator(
-                                                valueColor:
-                                                    AlwaysStoppedAnimation<
-                                                      Color
-                                                    >(
-                                                      Colors.white,
-                                                    ),
-                                              )
-                                            : const Text(
-                                                'Registrarse',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
+                                        child: Ink(
+                                          decoration: BoxDecoration(
+                                            gradient: const LinearGradient(
+                                              colors: [Color(0xFF001E35), Color(0xFF00335A)],
+                                              begin: Alignment.centerLeft,
+                                              end: Alignment.centerRight,
+                                            ),
+                                            borderRadius: BorderRadius.circular(15),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: const Color(0xFF001E35).withOpacity(0.3),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 4),
                                               ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                );
-                              },
-                        ),
-                      ),
-                    ),
+                                            ],
+                                          ),
+                                          child: Container(
+                                            alignment: Alignment.center,
+                                            child: provider.isLoading
+                                                ? const CircularProgressIndicator(
+                                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                                  )
+                                                : const Text(
+                                                    'Registrarse',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 18,
+                                                      fontWeight: FontWeight.bold,
+                                                      letterSpacing: 0.5,
+                                                    ),
+                                                  ),
+                                            ), // end Container
+                                          ), // end Ink
+                                        ), // end ElevatedButton
+                                      ), // end SizedBox
+                                  ], // end Column children
+                                ), // end Column
+                              ); // end Form
+                            }, // end builder
+                          ), // end Consumer
+                        ), // end Padding
+                      ), // end Container
+                    ), // end BackdropFilter
+                  ), // end ClipRRect
                     const SizedBox(
                       height: 25,
                     ),

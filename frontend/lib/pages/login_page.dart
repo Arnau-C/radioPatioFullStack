@@ -4,8 +4,10 @@ import 'package:frontend/pages/register_page.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/user_provider.dart';
 import 'package:frontend/utils/validators.dart';
+import 'dart:ui';
 import 'package:provider/provider.dart';
 import 'package:frontend/pages/home_screen.dart';
+import 'package:frontend/components/glass_background.dart';
 
 import 'package:frontend/pages/super_admin_page.dart';
 import 'package:frontend/pages/user_page.dart';
@@ -103,19 +105,16 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Fondo con un degradado de colores.
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFDF9C88), Color(0xFFFDE8E1)],
+          image: DecorationImage(
+            image: AssetImage('assets/images/login_bg.png'),
+            fit: BoxFit.cover,
           ),
         ),
-        child: SafeArea(
-          // SingleChildScrollView permite hacer scroll si el contenido no cabe,
-          // por ejemplo, cuando aparece el teclado.
-          child: Center(
+        child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 25.0),
               // Limitamos el ancho del formulario en pantallas grandes.
@@ -130,16 +129,37 @@ class _LoginPageState extends State<LoginPage> {
                     Image.asset('lib/images/logo.png', width: 280, height: 280),
                     const SizedBox(height: 20),
 
-                    // Tarjeta que contiene el formulario de login.
-                    Card(
-                      elevation: 8,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(25.0),
-                        // Consumer se suscribe a AuthProvider para redibujarse
-                        // si hay cambios (ej: mostrar errores o un loader).
+                    // Tarjeta de cristal ultra pulido (Apple Glassmorphism).
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(30),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+                        child: Container(
+                          padding: const EdgeInsets.all(35.0),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.white.withValues(alpha: 0.25),
+                                Colors.white.withValues(alpha: 0.05),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.3),
+                              width: 1.0,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 30,
+                                spreadRadius: -5,
+                              )
+                            ]
+                          ),
+                          // Consumer se suscribe a AuthProvider para redibujarse
+                          // si hay cambios (ej: mostrar errores o un loader).
                         child: Consumer<AuthProvider>(
                           builder: (context, provider, child) {
                             return Form(
@@ -148,7 +168,7 @@ class _LoginPageState extends State<LoginPage> {
                                 children: [
                                 // Título del formulario.
                                 const Text(
-                                  'Bienvenido de nuevo',
+                                  'Iniciar Sesión',
                                   style: TextStyle(
                                     color: Color(0xFF001E35),
                                     fontSize: 22,
@@ -162,6 +182,7 @@ class _LoginPageState extends State<LoginPage> {
                                   controller: _usernameController,
                                   hintText: 'Nombre de usuario',
                                   obscureText: false,
+                                  prefixIcon: Icons.person_outline,
                                   validator: (val) => Validators.validateNotEmpty(val, 'usuario'),
                                 ),
                                 const SizedBox(height: 12),
@@ -169,6 +190,7 @@ class _LoginPageState extends State<LoginPage> {
                                   controller: _passwordController,
                                   hintText: 'Contraseña',
                                   obscureText: true,
+                                  prefixIcon: Icons.lock_outline,
                                   validator: (val) => Validators.validateNotEmpty(val, 'contraseña'),
                                 ),
                                 const SizedBox(height: 8),
@@ -195,48 +217,62 @@ class _LoginPageState extends State<LoginPage> {
 
                                 const SizedBox(height: 10),
 
-                                // Botón de inicio de sesión.
                                 SizedBox(
                                   width: double.infinity,
                                   height: 50,
                                   child: ElevatedButton(
-                                    // Se deshabilita si está en estado de carga.
-                                    onPressed: provider.isLoading
-                                        ? null
-                                        : _handleLogin,
+                                    onPressed: provider.isLoading ? null : _handleLogin,
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF001E35),
+                                      backgroundColor: Colors.transparent,
+                                      shadowColor: Colors.transparent,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(15),
                                       ),
-                                      elevation: 5,
                                     ),
-                                    // Muestra un indicador de progreso o el texto.
-                                    child: provider.isLoading
-                                        ? const CircularProgressIndicator(
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                                  Colors.white,
-                                                ),
-                                          )
-                                        : const Text(
-                                            'Iniciar Sesión',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            ),
+                                    child: Ink(
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(
+                                          colors: [Color(0xFF001E35), Color(0xFF00335A)],
+                                          begin: Alignment.centerLeft,
+                                          end: Alignment.centerRight,
+                                        ),
+                                        borderRadius: BorderRadius.circular(15),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFF001E35).withOpacity(0.3),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 4),
                                           ),
+                                        ],
+                                      ),
+                                      child: Container(
+                                        alignment: Alignment.center,
+                                        child: provider.isLoading
+                                            ? const CircularProgressIndicator(
+                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                              )
+                                            : const Text(
+                                                'Iniciar Sesión',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                  letterSpacing: 0.5,
+                                                ),
+                                              ),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],
-                             ),
-                            );
-                          },
-                        ),
+                            ),
+                          );
+                        },
                       ),
                     ),
-                    const SizedBox(height: 25),
+                  ),
+                ),
+                const SizedBox(height: 25),
 
                     // Enlace para navegar a la página de registro.
                     Row(
@@ -273,7 +309,6 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
           ),
-        ),
       ),
     );
   }
