@@ -54,7 +54,24 @@ const documentoService = {
     verDocumento: async (documentoId) => {
         const res = await axios.get(`${API_URL}/descargar/${documentoId}`, {
             headers: { 'Authorization': `Bearer ${getToken()}` },
-            responseType: 'blob' // Clave para los PDFs
+            responseType: 'blob' 
+        });
+        return res.data;
+    },
+
+    borrarDocumento: async (documentoId) => {
+        const res = await axios.delete(`${API_URL}/${documentoId}`, {
+            headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        return res.data;
+    },
+
+    moverDocumento: async (documentoId, nuevaCarpetaId) => {
+    
+        const res = await axios.put(`${API_URL}/mover/${documentoId}`, {
+            nuevaCarpetaId: parseInt(nuevaCarpetaId) 
+        }, {
+            headers: { 'Authorization': `Bearer ${getToken()}` }
         });
         return res.data;
     }

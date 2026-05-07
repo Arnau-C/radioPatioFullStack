@@ -19,6 +19,11 @@ const DocumentosPage = () => {
     const [nuevoNombreCarpeta, setNuevoNombreCarpeta] = useState('');
     const [archivoASubir, setArchivoASubir] = useState(null);
 
+    // NUEVOS ESTADOS PARA MOVER ARCHIVOS
+    const [showModalMover, setShowModalMover] = useState(false);
+    const [documentoAMover, setDocumentoAMover] = useState(null);
+    const [carpetaDestinoId, setCarpetaDestinoId] = useState('');
+
     useEffect(() => {
         cargarDatosIniciales();
     }, []);
@@ -95,6 +100,45 @@ const DocumentosPage = () => {
         }
     };
 
+    // NUEVO: Borrar documento
+    const handleBorrarDocumento = async (documentoId) => {
+        if (!window.confirm("¿Estás seguro de que deseas eliminar este documento permanentemente?")) return;
+        try {
+            await documentoService.borrarDocumento(documentoId);
+            // Recargamos la carpeta actual
+            seleccionarCarpeta(carpetaSeleccionada);
+        } catch (error) {
+            alert("Error al borrar el documento");
+        }
+    };
+
+    // NUEVO: Preparar y abrir modal para mover
+    const abrirModalMover = (doc) => {
+        setDocumentoAMover(doc);
+        const carpetasDisponibles = carpetas.filter(c => c.id !== carpetaSeleccionada?.id);
+        if (carpetasDisponibles.length > 0) {
+            setCarpetaDestinoId(carpetasDisponibles[0].id);
+        } else {
+            setCarpetaDestinoId('');
+        }
+        setShowModalMover(true);
+    };
+
+    // NUEVO: Confirmar el movimiento
+    const handleMoverDocumento = async (e) => {
+        e.preventDefault();
+        if (!documentoAMover || !carpetaDestinoId) return;
+        try {
+            await documentoService.moverDocumento(documentoAMover.id, carpetaDestinoId);
+            setShowModalMover(false);
+            setDocumentoAMover(null);
+            // Recargamos la carpeta actual para que desaparezca de la lista visualmente
+            seleccionarCarpeta(carpetaSeleccionada);
+        } catch (error) {
+            alert("Error al mover el documento");
+        }
+    };
+
     if (loading) return <div className="p-10 text-center font-black text-orange-600">Cargando archivador...</div>;
 
     return (
@@ -131,8 +175,6 @@ const DocumentosPage = () => {
 
                 {/* Principal: Archivos */}
                 <div className="lg:col-span-3 bg-white rounded-[2.5rem] p-8 border border-slate-200 shadow-sm min-h-[500px]">
-                    
-                    {/* Cabecera de la carpeta y Botón de borrar */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4 border-b border-slate-50 pb-4">
                         <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
                             {carpetaSeleccionada?.nombre || "Selecciona una carpeta"}
@@ -149,7 +191,6 @@ const DocumentosPage = () => {
                         )}
                     </div>
 
-                    {/* Rejilla de archivos */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {documentos?.length === 0 && carpetaSeleccionada && (
                             <p className="text-slate-400 italic">Carpeta vacía.</p>
@@ -163,12 +204,38 @@ const DocumentosPage = () => {
                                         <p className="text-[10px] text-slate-400 font-medium">Subido el {new Date(d.fechaSubida).toLocaleDateString()}</p>
                                     </div>
                                 </div>
-                                <button 
-                                    onClick={() => handleVerDocumento(d.id)}
-                                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 bg-white p-2 rounded-lg text-orange-600 shadow-sm hover:scale-110 transition-all cursor-pointer"
-                                >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                                </button>
+                                
+                                {/* BOTONERA DE ARCHIVOS */}
+                                <div className="flex items-center gap-2">
+                                    <button 
+                                        onClick={() => handleVerDocumento(d.id)}
+                                        title="Ver PDF"
+                                        className="flex-shrink-0 opacity-0 group-hover:opacity-100 bg-white p-2 rounded-lg text-blue-500 shadow-sm hover:scale-110 transition-all cursor-pointer"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                    </button>
+
+                                    {/* SOLO PRESIDENTE VE ESTOS BOTONES */}
+                                    {esPresidente && (
+                                        <>
+                                            <button 
+                                                onClick={() => abrirModalMover(d)}
+                                                title="Mover a otra carpeta"
+                                                className="flex-shrink-0 opacity-0 group-hover:opacity-100 bg-white p-2 rounded-lg text-amber-500 shadow-sm hover:scale-110 transition-all cursor-pointer"
+                                            >
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                                            </button>
+
+                                            <button 
+                                                onClick={() => handleBorrarDocumento(d.id)}
+                                                title="Eliminar PDF"
+                                                className="flex-shrink-0 opacity-0 group-hover:opacity-100 bg-white p-2 rounded-lg text-red-500 shadow-sm hover:scale-110 transition-all cursor-pointer"
+                                            >
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -211,6 +278,35 @@ const DocumentosPage = () => {
                         <div className="flex gap-3">
                             <button type="button" onClick={() => setShowModalSubir(false)} className="flex-1 py-3 font-bold text-slate-400">Cancelar</button>
                             <button type="submit" className="flex-1 bg-orange-600 text-white py-3 rounded-xl font-black uppercase text-xs">Subir</button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
+            {/* Modal Mover Archivo */}
+            {showModalMover && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <form onSubmit={handleMoverDocumento} className="bg-white p-8 rounded-[2.5rem] w-full max-w-sm shadow-2xl">
+                        <h3 className="text-xl font-black mb-2">Mover Archivo</h3>
+                        <p className="text-xs text-slate-500 mb-6 truncate">Archivo: <strong>{documentoAMover?.nombreOriginal}</strong></p>
+                        
+                        <label className="block text-[10px] font-black uppercase text-slate-400 mb-2 ml-1">Selecciona la carpeta destino</label>
+                        <select 
+                            className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl mb-6 outline-none focus:ring-2 focus:ring-orange-500/20 font-medium text-slate-700 cursor-pointer"
+                            value={carpetaDestinoId}
+                            onChange={(e) => setCarpetaDestinoId(e.target.value)}
+                            required
+                        >
+                            <option value="" disabled>Elige una carpeta...</option>
+                            {/* Filtramos para que no salga la carpeta actual */}
+                            {carpetas.filter(c => c.id !== carpetaSeleccionada?.id).map(c => (
+                                <option key={c.id} value={c.id}>{c.nombre}</option>
+                            ))}
+                        </select>
+
+                        <div className="flex gap-3">
+                            <button type="button" onClick={() => setShowModalMover(false)} className="flex-1 py-3 font-bold text-slate-400">Cancelar</button>
+                            <button type="submit" disabled={!carpetaDestinoId} className="flex-1 bg-orange-600 text-white py-3 rounded-xl font-black uppercase text-xs disabled:opacity-50">Mover</button>
                         </div>
                     </form>
                 </div>

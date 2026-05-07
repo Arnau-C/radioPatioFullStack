@@ -21,6 +21,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/documentos")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS})
 public class DocumentoController {
 
     private final DocumentoService documentoService;
