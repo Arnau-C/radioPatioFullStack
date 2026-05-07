@@ -70,6 +70,7 @@ public ResponseEntity<?> crearComunidad(@RequestBody ComunidadRequest request) {
     respuesta.put("mensaje", "Comunidad creada con éxito");
     respuesta.put("codigoInvitacion", codigo);
     respuesta.put("idComunidad", comunidadCreada.getId());
+    respuesta.put("foroId", foroComunidad.getId());
 
     return ResponseEntity.ok(respuesta);
 }
@@ -92,9 +93,14 @@ public ResponseEntity<?> crearComunidad(@RequestBody ComunidadRequest request) {
             usuario.setRol("VECINO");
             usuarioRepository.save(usuario);
 
+          Long foroId = foroRepository.findByComunidadId(comunidad.getId())
+                    .map(Foro::getId)
+                    .orElse(null);
+
             return ResponseEntity.ok(Map.of(
                 "comunidadNombre", comunidad.getNombre(),
-                "rolAsignado", "VECINO"
+                "rolAsignado", "VECINO",
+                "foroId", foroId 
             ));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(400).body(Map.of("error", e.getMessage()));

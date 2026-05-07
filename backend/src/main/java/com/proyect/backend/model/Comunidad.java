@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Entity
 @Table(name = "comunidades")
-public class Comunidad {
+ public class Comunidad {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
