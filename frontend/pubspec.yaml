@@ -10,6 +10,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
@@ -32,3 +33,10 @@ dependencies:
   file_picker: ^8.0.0
   syncfusion_flutter_pdfviewer: any  
   glassmorphism: ^3.0.0
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  windows: true
+  macos: true
+  image_path: "assets/logo.png"
