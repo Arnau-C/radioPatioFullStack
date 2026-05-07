@@ -105,7 +105,8 @@ public class DocumentoController {
             if (resource.exists() || resource.isReadable()) {
                 return ResponseEntity.ok()
                         .contentType(MediaType.APPLICATION_PDF)
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + doc.getTitulo() + "\"")
+                        // CAMBIO: "inline" hace que el navegador lo intente abrir como visor PDF
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + doc.getTitulo() + "\"")
                         .body(resource);
             } else {
                 throw new RuntimeException("No se pudo leer el archivo físico");

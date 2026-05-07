@@ -13,14 +13,11 @@ const LoginPage = () => {
     e.preventDefault();
     setError(''); 
     try {
-      // Intentamos el login
       await authService.login(username, password);
       
-      // CAMBIO AQUÍ: Redirigimos al Panel de Comunidad en lugar de al Foro global
       navigate('/comunidad'); 
       
     } catch (err) {
-      // Capturamos el error que venga del backend (bloqueos, pass incorrecta, etc)
       setError(err.response?.data || "Usuario o contraseña incorrectos");
     }
   };

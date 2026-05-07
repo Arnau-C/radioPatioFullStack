@@ -3,17 +3,14 @@ import { Link } from 'react-router-dom';
 import logo from '../assets/logo.png';
 
 const LandingPage = () => {
-  // Comprobamos si hay un usuario en el sistema
   const user = JSON.parse(localStorage.getItem('user'));
 
   return (
     <div className="bg-orange-50 min-h-screen">
       
-      {/* SECCIÓN HERO: PRESENTACIÓN */}
       <section className="relative overflow-hidden pt-16 pb-32">
         <div className="max-w-7xl mx-auto px-8 flex flex-col lg:flex-row items-center gap-12">
           
-          {/* PARTE IZQUIERDA: CONTENIDO */}
           <div className="lg:w-1/2 text-left z-10">
             <span className="inline-block py-1 px-3 rounded-full bg-orange-100 text-orange-700 text-sm font-bold mb-4">
               Gestión de comunidades moderna
@@ -29,15 +26,13 @@ const LandingPage = () => {
             </p>
 
             <div className="mt-10">
-              {/* Si el usuario ya está dentro, el botón podría llevarle al foro directamente, 
-                  pero mantenemos el de Iniciar Sesión o Registro si prefieres que la landing sea estática */}
+          
               {!user && (
                 <Link to="/login" className="inline-block bg-orange-600 text-white px-10 py-4 rounded-2xl text-xl font-bold hover:bg-orange-700 transition shadow-lg mb-10">
                   Inicia sesión
                 </Link>
               )}
 
-              {/* SOBRE EL PROYECTO */}
               <div className="max-w-2xl space-y-4">
                 <p className="text-base text-gray-700 leading-relaxed">
                   <span className="font-bold text-orange-700">Este es un proyecto de software en fase de desarrollo.</span>
@@ -59,7 +54,6 @@ const LandingPage = () => {
             </div>
           </div>
           
-          {/* PARTE DERECHA: LOGO */}
           <div className="lg:w-1/2 flex justify-center">
             <img 
               src={logo} 
@@ -71,7 +65,6 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* SECCIÓN DE CARACTERÍSTICAS */}
       <section className="bg-white/40 py-20 border-t border-orange-100">
         <div className="max-w-7xl mx-auto px-8 grid md:grid-cols-3 gap-8">
           <div className="text-center p-8 bg-white/50 rounded-3xl border border-orange-50 shadow-sm">
@@ -92,7 +85,6 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* SECCIÓN: CALL TO ACTION AL BUZÓN (SOLO SI ESTÁ LOGUEADO) */}
       {user && (
         <section className="py-24 bg-orange-100/30 border-t border-orange-200">
           <div className="max-w-4xl mx-auto px-6 text-center">
@@ -111,7 +103,6 @@ const LandingPage = () => {
         </section>
       )}
 
-      {/* FOOTER */}
       <footer className="py-12 text-center border-t border-orange-100">
         <img src={logo} alt="Radio Patio" className="h-8 mx-auto mb-4 opacity-50" />
         <p className="text-gray-400 text-sm">© 2026 Radio Patio Team</p>

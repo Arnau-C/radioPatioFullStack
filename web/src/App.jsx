@@ -9,6 +9,7 @@ import PerfilPage from './pages/PerfilPage';
 import ChatComunidadPage from './pages/ChatComunidadPage';
 import CrearComunidadPage from './pages/CrearComunidadPage';
 import UnirseComunidadPage from './pages/UnirseComunidadPage';
+import DocumentosPage from './pages/DocumentosPage';
 
 function App() {
   return (
@@ -23,9 +24,9 @@ function App() {
         <Route path="/crear-comunidad" element={<CrearComunidadPage />} />
 <Route path="/unirse-comunidad" element={<UnirseComunidadPage />} />
 <Route path="/comunidad/foro" element={<ChatComunidadPage />} />
-        {/* Cambiamos la ruta de la página de sugerencias/info a /ayuda */}
         <Route path="/ayuda" element={<ForoPage />} />
-        {/* Dejamos /foro libre para la futura sección de comunidad propia */}
+        <Route path="/comunidad/documentos" element={<DocumentosPage />} />
+
         <Route path="/foro" element={<div className="p-20 text-center font-bold">Próximamente: Panel de tu Comunidad</div>} />
       </Routes>
     </Router>

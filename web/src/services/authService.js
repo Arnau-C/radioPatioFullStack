@@ -47,7 +47,6 @@ const authService = {
       }
     });
     
-    // 3. Actualizamos el localStorage manteniendo el token antiguo
     const updatedUser = { ...user, ...response.data };
     localStorage.setItem('user', JSON.stringify(updatedUser));
     
