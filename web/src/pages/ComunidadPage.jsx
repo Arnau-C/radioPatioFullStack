@@ -68,7 +68,6 @@ const ComunidadPage = () => {
     );
   }
 
-  // --- CASO B: SÍ TIENE COMUNIDAD (Mismo código que ya tenías) ---
   const opciones = [
     {
       id: 'foro',
@@ -91,8 +90,20 @@ const ComunidadPage = () => {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
         </svg>
       ),
-      color: 'bg-orange-500', // Mismo color para mantener coherencia
+      color: 'bg-orange-500', 
       ruta: '/comunidad/documentos'
+    },
+    {
+      id: 'calendario',
+      titulo: 'Calendario',
+      descripcion: 'Avisos y próximos eventos.',
+      icono: (
+        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      ),
+      color: 'bg-orange-500', 
+      ruta: '/comunidad/calendario'
     },
   ];
 

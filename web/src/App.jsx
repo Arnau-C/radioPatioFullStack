@@ -10,6 +10,7 @@ import ChatComunidadPage from './pages/ChatComunidadPage';
 import CrearComunidadPage from './pages/CrearComunidadPage';
 import UnirseComunidadPage from './pages/UnirseComunidadPage';
 import DocumentosPage from './pages/DocumentosPage';
+import CalendarioPage from './pages/CalendarioPage';
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
 <Route path="/comunidad/foro" element={<ChatComunidadPage />} />
         <Route path="/ayuda" element={<ForoPage />} />
         <Route path="/comunidad/documentos" element={<DocumentosPage />} />
+        <Route path="/comunidad/calendario" element={<CalendarioPage />} />
 
         <Route path="/foro" element={<div className="p-20 text-center font-bold">Próximamente: Panel de tu Comunidad</div>} />
       </Routes>
