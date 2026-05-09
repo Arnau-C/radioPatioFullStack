@@ -3,8 +3,12 @@ import 'package:frontend/components/textfield.dart';
 import 'package:frontend/pages/register_page.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/user_provider.dart';
+import 'package:frontend/utils/validators.dart';
+import 'dart:ui';
 import 'package:provider/provider.dart';
 import 'package:frontend/pages/home_screen.dart';
+import 'package:frontend/components/glass_background.dart';
+import 'package:frontend/components/animated_button.dart';
 
 import 'package:frontend/pages/super_admin_page.dart';
 import 'package:frontend/pages/user_page.dart';
@@ -27,6 +31,7 @@ class LoginPage extends StatefulWidget {
 /// Gestiona la lógica y el estado de la [LoginPage].
 class _LoginPageState extends State<LoginPage> {
   // Controladores para los campos de texto de usuario y contraseña.
+  final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
 
@@ -39,14 +44,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
-    // Obtenemos la instancia de AuthProvider sin escuchar cambios, ya que solo
-    // la usaremos para llamar a sus métodos.
     _authProvider = Provider.of<AuthProvider>(context, listen: false);
-
-    // Añadimos listeners para limpiar los mensajes de error/éxito
-    // en cuanto el usuario empieza a escribir de nuevo.
-    _usernameController.addListener(_authProvider.clearAllMessages);
-    _passwordController.addListener(_authProvider.clearAllMessages);
   }
 
   /// [dispose]
@@ -60,10 +58,12 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  /// [_handleLogin]
-  ///
   /// Gestiona el proceso de inicio de sesión.
   Future<void> _handleLogin() async {
+    // Validar form local antes de enviar
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
     // Llama al método de login del proveedor con los datos introducidos.
     final userData = await _authProvider.login(
       _usernameController.text,
@@ -106,19 +106,16 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Fondo con un degradado de colores.
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFDF9C88), Color(0xFFFDE8E1)],
+          image: DecorationImage(
+            image: AssetImage('assets/images/login_bg.png'),
+            fit: BoxFit.cover,
           ),
         ),
-        child: SafeArea(
-          // SingleChildScrollView permite hacer scroll si el contenido no cabe,
-          // por ejemplo, cuando aparece el teclado.
-          child: Center(
+        child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 25.0),
               // Limitamos el ancho del formulario en pantallas grandes.
@@ -133,23 +130,46 @@ class _LoginPageState extends State<LoginPage> {
                     Image.asset('lib/images/logo.png', width: 280, height: 280),
                     const SizedBox(height: 20),
 
-                    // Tarjeta que contiene el formulario de login.
-                    Card(
-                      elevation: 8,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(25.0),
-                        // Consumer se suscribe a AuthProvider para redibujarse
-                        // si hay cambios (ej: mostrar errores o un loader).
+                    // Tarjeta de cristal ultra pulido (Apple Glassmorphism).
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(30),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+                        child: Container(
+                          padding: const EdgeInsets.all(35.0),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.white.withValues(alpha: 0.25),
+                                Colors.white.withValues(alpha: 0.05),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.3),
+                              width: 1.0,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 30,
+                                spreadRadius: -5,
+                              )
+                            ]
+                          ),
+                          // Consumer se suscribe a AuthProvider para redibujarse
+                          // si hay cambios (ej: mostrar errores o un loader).
                         child: Consumer<AuthProvider>(
                           builder: (context, provider, child) {
-                            return Column(
-                              children: [
+                            return Form(
+                              key: _formKey,
+                              child: Column(
+                                children: [
                                 // Título del formulario.
                                 const Text(
-                                  'Bienvenido de nuevo',
+                                  'Iniciar Sesión',
                                   style: TextStyle(
                                     color: Color(0xFF001E35),
                                     fontSize: 22,
@@ -163,14 +183,16 @@ class _LoginPageState extends State<LoginPage> {
                                   controller: _usernameController,
                                   hintText: 'Nombre de usuario',
                                   obscureText: false,
-                                  errorMsg: provider.usernameError,
+                                  prefixIcon: Icons.person_outline,
+                                  validator: (val) => Validators.validateNotEmpty(val, 'usuario'),
                                 ),
                                 const SizedBox(height: 12),
                                 MyTextField(
                                   controller: _passwordController,
                                   hintText: 'Contraseña',
                                   obscureText: true,
-                                  errorMsg: provider.passwordError,
+                                  prefixIcon: Icons.lock_outline,
+                                  validator: (val) => Validators.validateNotEmpty(val, 'contraseña'),
                                 ),
                                 const SizedBox(height: 8),
 
@@ -182,49 +204,34 @@ class _LoginPageState extends State<LoginPage> {
                                     style: TextStyle(color: Colors.grey[600]),
                                   ),
                                 ),
-                                const SizedBox(height: 20),
+                                const SizedBox(height: 10),
 
-                                // Botón de inicio de sesión.
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 50,
-                                  child: ElevatedButton(
-                                    // Se deshabilita si está en estado de carga.
-                                    onPressed: provider.isLoading
-                                        ? null
-                                        : _handleLogin,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF001E35),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(15),
-                                      ),
-                                      elevation: 5,
+                                if (provider.errorMessage != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 10),
+                                    child: Text(
+                                      provider.errorMessage!,
+                                      style: const TextStyle(color: Colors.red, fontSize: 13, fontWeight: FontWeight.bold),
+                                      textAlign: TextAlign.center,
                                     ),
-                                    // Muestra un indicador de progreso o el texto.
-                                    child: provider.isLoading
-                                        ? const CircularProgressIndicator(
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                                  Colors.white,
-                                                ),
-                                          )
-                                        : const Text(
-                                            'Iniciar Sesión',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
                                   ),
+
+                                const SizedBox(height: 10),
+
+                                AnimatedButton(
+                                  text: 'Iniciar Sesión',
+                                  isLoading: provider.isLoading,
+                                  onTap: provider.isLoading ? null : _handleLogin,
                                 ),
                               ],
-                            );
-                          },
-                        ),
+                            ),
+                          );
+                        },
                       ),
                     ),
-                    const SizedBox(height: 25),
+                  ),
+                ),
+                const SizedBox(height: 25),
 
                     // Enlace para navegar a la página de registro.
                     Row(
@@ -261,7 +268,6 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
           ),
-        ),
       ),
     );
   }

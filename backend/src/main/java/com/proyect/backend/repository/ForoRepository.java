@@ -8,4 +8,5 @@ import java.util.Optional;
 @Repository
 public interface ForoRepository extends JpaRepository<Foro, Long> {
 Optional<Foro> findByComunidadId(Long comunidadId);
+
 }

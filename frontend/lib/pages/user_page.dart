@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'package:frontend/pages/create_community_page.dart';
 import 'package:frontend/pages/edit_user.dart';
+import 'package:frontend/pages/home_screen.dart';
 import 'package:frontend/pages/login_page.dart';
 import 'package:frontend/providers/user_provider.dart';
 import 'package:frontend/utils/api_client.dart';
@@ -71,9 +72,8 @@ class _UserPageState extends State<UserPage> {
           // Actualización de estado manual para forzar el repintado
           final userJson = provider.user!.toJson();
           userJson['rol'] = 'VECINO';
+          userJson['token'] = provider.token; // Preservamos el token para no desloguear
           provider.setUser(userJson);
-          // Nota: Deberías idealmente tener un método en el provider para actualizar el rol
-          // Como no veo un método setUser directo, simularemos el repintado
         }
 
         if (mounted) {
@@ -87,9 +87,13 @@ class _UserPageState extends State<UserPage> {
               behavior: SnackBarBehavior.floating,
             ),
           );
-          // Forzamos a recargar los datos del usuario para que se actualice el rol real
-          obtenerCodigoComunidad(username);
-          setState(() {});
+          
+          // Entramos en la comunidad recién unida: Redirigimos a la vista completa del calendario
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+            (Route<dynamic> route) => false,
+          );
         }
       } else {
         final errorData = jsonDecode(response.body);
@@ -461,21 +465,12 @@ class _UserPageState extends State<UserPage> {
                                 ),
                               ),
                             );
-                            if (resultado != null &&
-                                resultado is Map &&
-                                resultado['exito'] == true) {
-                              // Si creó con éxito, obtenemos el código nuevo y simulamos repintado
-                              setState(() {
-                                codigoInvitacionActual =
-                                    resultado['nuevoCodigo'];
-                              });
-                              // Nota: Al volver, el usuario debería volver a hacer login para refrescar el rol en el backend localmente
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    "Por favor, vuelve a iniciar sesión para actualizar tus permisos",
-                                  ),
-                                ),
+                            if (resultado == true) {
+                              // Redirige directamente al panel del calendario
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(builder: (context) => const HomeScreen()),
+                                (Route<dynamic> route) => false,
                               );
                             }
                           },
