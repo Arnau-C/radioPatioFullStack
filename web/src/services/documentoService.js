@@ -36,8 +36,9 @@ const documentoService = {
 
         const res = await axios.post(`${API_URL}/subir`, formData, {
             headers: { 
-                'Authorization': `Bearer ${getToken()}`,
-                'Content-Type': 'multipart/form-data'
+                'Authorization': `Bearer ${getToken()}`
+                // Explicación: No debemos poner 'Content-Type': 'multipart/form-data' manualmente.
+                // Axios lo pone automáticamente con el "boundary" correcto al enviarle un FormData.
             }
         });
         return res.data;
