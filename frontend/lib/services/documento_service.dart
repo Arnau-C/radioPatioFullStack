@@ -4,7 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:frontend/models/carpeta.dart';
 import 'package:frontend/models/documento.dart';
 import 'package:frontend/utils/api_client.dart';
-import 'package:http_parser/http_parser.dart'; // <--- AÑADE ESTA LÍNEA
+import 'package:http_parser/http_parser.dart';
 
 class DocumentoService {
   final String _baseUrl = '${ApiClient.baseUrl}/documentos';
@@ -110,18 +110,13 @@ class DocumentoService {
     request.fields['carpetaId'] = carpetaId.toString();
     request.fields['username'] = username;
 
-    // Forzamos el tipo de archivo para que el Backend no lo rechace
-    final mimeType = http.ByteStream.fromBytes(
-      utf8.encode('application/pdf'),
-    ).toString();
-
     if (file.bytes != null) {
       request.files.add(
         http.MultipartFile.fromBytes(
           'file',
           file.bytes!,
           filename: file.name,
-          contentType: MediaType('application', 'pdf'), // <--- IMPORTANTE
+          contentType: MediaType('application', 'pdf'),
         ),
       );
     } else if (file.path != null) {
@@ -129,7 +124,9 @@ class DocumentoService {
         await http.MultipartFile.fromPath(
           'file',
           file.path!,
-          contentType: MediaType('application', 'pdf'), // <--- IMPORTANTE
+          filename:
+              file.name, // <--- SOLUCIÓN: Java ya sabe cómo se llama el archivo
+          contentType: MediaType('application', 'pdf'),
         ),
       );
     }
@@ -138,9 +135,17 @@ class DocumentoService {
     var response = await http.Response.fromStream(streamedResponse);
 
     if (response.statusCode != 200) {
-      // AQUÍ ESTÁ EL CAMBIO: Ahora leeremos qué error nos manda Java
-      final errorData = jsonDecode(response.body);
-      throw Exception(errorData['error'] ?? 'Error desconocido en el servidor');
+      // SOLUCIÓN: Si Render devuelve un HTML de error, esto no crashea
+      try {
+        final errorData = jsonDecode(response.body);
+        throw Exception(
+          errorData['error'] ?? 'Error desconocido en el servidor',
+        );
+      } catch (e) {
+        throw Exception(
+          'El servidor de Render rechazó el archivo (Error ${response.statusCode})',
+        );
+      }
     }
   }
 

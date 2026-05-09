@@ -3,6 +3,7 @@ package com.proyect.backend.service;
 import com.proyect.backend.model.*;
 import com.proyect.backend.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.Async; // Importación necesaria
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -12,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.concurrent.CompletableFuture; // Importación necesaria
 
 @Service
 @RequiredArgsConstructor
@@ -65,57 +67,65 @@ public class DocumentoService {
     public void borrarCarpeta(Long id) {
         Carpeta carpeta = carpetaRepository.findById(id).orElseThrow();
         if (carpeta.isEsPrincipal()) throw new RuntimeException("No puedes borrar la Carpeta Principal");
-        // Aquí validamos lo que pediste:
+        
         if (documentoRepository.existsByCarpetaId(id)) {
             throw new RuntimeException("No puedes borrar una carpeta que tiene PDFs. Mueve o borra los archivos primero.");
         }
         carpetaRepository.delete(carpeta);
     }
+
     public void borrarDocumento(Long id) {
-    Documento doc = documentoRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Documento no encontrado"));
+        Documento doc = documentoRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Documento no encontrado"));
 
-    // 1. Intentar borrar el archivo físico del disco duro
-    try {
-        Path path = Paths.get(doc.getRutaArchivo());
-        Files.deleteIfExists(path);
-    } catch (IOException e) {
-        System.err.println("Error al borrar el archivo físico: " + e.getMessage());
-        // Seguimos adelante para al menos borrarlo de la BD
-    }
-
-    // 2. Borrar el registro de la Base de Datos
-    documentoRepository.delete(doc);
-}
-
-    // --- LÓGICA DE DOCUMENTOS ---
-    public Documento subirDocumento(MultipartFile file, Long carpetaId, String username) throws IOException {
-        if (file.getContentType() == null || !file.getContentType().equals("application/pdf")) {
-            throw new RuntimeException("Error: Solo se permite subir archivos PDF.");
+        try {
+            Path path = Paths.get(doc.getRutaArchivo());
+            Files.deleteIfExists(path);
+        } catch (IOException e) {
+            System.err.println("Error al borrar el archivo físico: " + e.getMessage());
         }
 
-        Usuario usuario = usuarioRepository.findByUsername(username).orElseThrow();
-        Carpeta carpeta = carpetaRepository.findById(carpetaId).orElseThrow();
+        documentoRepository.delete(doc);
+    }
 
-        // 1. Crear directorio en el PC si no existe
-        File directory = new File(UPLOAD_DIR);
-        if (!directory.exists()) directory.mkdirs();
+    // --- LÓGICA DE DOCUMENTOS ASÍNCRONA ---
+    @Async // Esto hace que el método se ejecute en un hilo separado
+    public CompletableFuture<Documento> subirDocumento(MultipartFile file, Long carpetaId, String username) throws IOException {
+        try {
+            if (file.getContentType() == null || !file.getContentType().equals("application/pdf")) {
+                throw new RuntimeException("Error: Solo se permite subir archivos PDF.");
+            }
 
-        // 2. Guardar archivo físico
-        String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
-        Path filePath = Paths.get(UPLOAD_DIR + fileName);
-        Files.write(filePath, file.getBytes());
+            Usuario usuario = usuarioRepository.findByUsername(username).orElseThrow();
+            Carpeta carpeta = carpetaRepository.findById(carpetaId).orElseThrow();
 
-        // 3. Guardar registro en Base de Datos
-        Documento doc = Documento.builder()
-                .titulo(file.getOriginalFilename())
-                .rutaArchivo(filePath.toString())
-                .carpeta(carpeta)
-                .subidoPor(usuario)
-                .comunidad(carpeta.getComunidad())
-                .build();
+            // 1. Crear directorio en el PC si no existe
+            File directory = new File(UPLOAD_DIR);
+            if (!directory.exists()) directory.mkdirs();
 
-        return documentoRepository.save(doc);
+            // 2. Guardar archivo físico
+            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+            Path filePath = Paths.get(UPLOAD_DIR + fileName);
+            Files.write(filePath, file.getBytes());
+
+            // 3. Guardar registro en Base de Datos
+            Documento doc = Documento.builder()
+                    .titulo(file.getOriginalFilename())
+                    .rutaArchivo(filePath.toString())
+                    .carpeta(carpeta)
+                    .subidoPor(usuario)
+                    .comunidad(carpeta.getComunidad())
+                    .build();
+
+            Documento guardado = documentoRepository.save(doc);
+            
+            // Retornamos el resultado de forma asíncrona
+            return CompletableFuture.completedFuture(guardado);
+            
+        } catch (Exception e) {
+            // En caso de error, el CompletableFuture notifica el fallo
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     public List<Documento> obtenerDocumentosPorCarpeta(Long carpetaId) {

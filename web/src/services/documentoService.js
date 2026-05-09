@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'https://radiopatiofullstackbackend.onrender.com/api/auth/documentos';
+const API_URL = 'https://radiopatiofullstackbackend.onrender.com/api/documentos';
 const getToken = () => {
     const user = JSON.parse(localStorage.getItem('user'));
     return user?.token;
