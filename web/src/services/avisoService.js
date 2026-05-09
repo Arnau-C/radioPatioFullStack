@@ -1,7 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8080/api/avisos';
-
+const API_URL = 'https://radiopatiofullstackbackend.onrender.com/api/avisos';
 const getToken = () => {
     const user = JSON.parse(localStorage.getItem('user'));
     return user?.token;

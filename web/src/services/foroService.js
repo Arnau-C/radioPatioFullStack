@@ -1,11 +1,7 @@
 import axios from 'axios';
 
-<<<<<<< HEAD
-//const API_URL = 'https://radiopatiofullstackbackend.onrender.com/api/foros';
-const API_URL = 'http://localhost:8080/api/foros';
-=======
+
 const API_URL = 'https://radiopatiofullstackbackend.onrender.com/api/foros';
->>>>>>> origin/develop
 const getAuthHeaders = () => {
   const userData = JSON.parse(localStorage.getItem('user'));
   return userData?.token ? { Authorization: `Bearer ${userData.token}` } : {};

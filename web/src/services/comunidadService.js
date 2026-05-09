@@ -2,8 +2,7 @@
 import axios from 'axios';
 
 // Asegúrate de que esta URL coincida con la que usas en tu entorno
-const API_URL = 'http://localhost:8080/api/comunidades'; 
-
+const API_URL = 'https://radiopatiofullstackbackend.onrender.com/api/comunidades';
 const getToken = () => {
   const user = JSON.parse(localStorage.getItem('user'));
   return user?.token;
