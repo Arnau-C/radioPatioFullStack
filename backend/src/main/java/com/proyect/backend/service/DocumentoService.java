@@ -90,9 +90,12 @@ public class DocumentoService {
 
     // --- LÓGICA DE DOCUMENTOS ASÍNCRONA ---
     @Async // Esto hace que el método se ejecute en un hilo separado
-    public CompletableFuture<Documento> subirDocumento(MultipartFile file, Long carpetaId, String username) throws IOException {
+    // Explicación: Recibimos los bytes del archivo y metadatos en lugar de MultipartFile. 
+    // Si recibimos MultipartFile en un método @Async, el hilo principal puede borrar el archivo 
+    // temporal antes de que el hilo asíncrono intente leerlo, lanzando un FileNotFoundException.
+    public CompletableFuture<Documento> subirDocumento(byte[] fileBytes, String originalFilename, String contentType, Long carpetaId, String username) {
         try {
-            if (file.getContentType() == null || !file.getContentType().equals("application/pdf")) {
+            if (contentType == null || !contentType.equals("application/pdf")) {
                 throw new RuntimeException("Error: Solo se permite subir archivos PDF.");
             }
 
@@ -104,13 +107,13 @@ public class DocumentoService {
             if (!directory.exists()) directory.mkdirs();
 
             // 2. Guardar archivo físico
-            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+            String fileName = System.currentTimeMillis() + "_" + originalFilename;
             Path filePath = Paths.get(UPLOAD_DIR + fileName);
-            Files.write(filePath, file.getBytes());
+            Files.write(filePath, fileBytes);
 
             // 3. Guardar registro en Base de Datos
             Documento doc = Documento.builder()
-                    .titulo(file.getOriginalFilename())
+                    .titulo(originalFilename)
                     .rutaArchivo(filePath.toString())
                     .carpeta(carpeta)
                     .subidoPor(usuario)

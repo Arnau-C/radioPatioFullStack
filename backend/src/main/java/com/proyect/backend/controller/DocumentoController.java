@@ -86,7 +86,14 @@ public class DocumentoController {
             @RequestParam("carpetaId") Long carpetaId,
             @RequestParam("username") String username) throws IOException {
         
-        return documentoService.subirDocumento(file, carpetaId, username)
+        // Explicación: Extraemos los datos del MultipartFile de forma sincrónica aquí en el hilo principal.
+        // Si pasamos el MultipartFile completo al hilo @Async, Tomcat podría borrar el archivo temporal
+        // antes de que el hilo en background llegue a leerlo, provocando un error.
+        byte[] fileBytes = file.getBytes();
+        String originalFilename = file.getOriginalFilename();
+        String contentType = file.getContentType();
+
+        return documentoService.subirDocumento(fileBytes, originalFilename, contentType, carpetaId, username)
                 // Usamos <ResponseEntity<?>> para que Java acepte cualquier tipo de respuesta
                 .<ResponseEntity<?>>thenApply(doc -> ResponseEntity.ok(doc))
                 .exceptionally(ex -> ResponseEntity.status(500).body(Map.of("error", ex.getMessage())));
