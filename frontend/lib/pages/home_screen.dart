@@ -321,6 +321,10 @@ class _HomeScreenState extends State<HomeScreen> {
     bool isPresident = (user.rol == 'PRESIDENTE');
     bool isAdmin = (user.rol == 'ADMIN' || user.rol == 'SUPER_ADMIN');
 
+    // 👇 ESTA ES LA CLAVE: Aquí están tus variables
+    bool puedeCrearAvisos = isPresident || isAdmin || (user.permisoCrearAvisos);
+    bool puedeVerDocumentos = isPresident || isAdmin || (user.permisoGestionarDocumentos);
+    
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
 
@@ -351,7 +355,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-            if (isPresident || isAdmin)
+            // 👇 Aquí usamos tu variable puedeVerDocumentos
+            if (puedeVerDocumentos)
               ListTile(
                 leading: Icon(Icons.folder_shared, color: primaryDark),
                 title: const Text('Administración (Documentos)'),
@@ -563,7 +568,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 15),
 
                 FutureBuilder<List<Aviso>>(
-                  future: _avisoService.getAvisosPorFecha(_fechaSeleccionada, token!),
+                  future: _avisoService.getAvisosPorFecha(_fechaSeleccionada, token),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return Center(
@@ -603,7 +608,8 @@ class _HomeScreenState extends State<HomeScreen> {
           Positioned(
             bottom: 16.0,
             right: 16.0,
-            child: _buildTwitterStyleFab(isVecinoMember, isPresident, isAdmin, user.username, token),
+            // 👇 Y aquí se le pasa puedeCrearAvisos al botón flotante
+            child: _buildTwitterStyleFab(isVecinoMember, puedeCrearAvisos, user.username, token),
           ),
         ],
       ),
@@ -730,7 +736,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildTwitterStyleFab(bool isMember, bool isPresident, bool isAdmin, String username, String token) {
+  // 👇 Aquí está la otra parte del cambio: recibe 'puedeCrearAvisos'
+  Widget _buildTwitterStyleFab(bool isMember, bool puedeCrearAvisos, String username, String token) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -777,7 +784,8 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
           const SizedBox(height: 15),
-          if (isPresident || isAdmin) ...[
+          // 👇 Y aquí usamos la variable
+          if (puedeCrearAvisos) ...[
             const Divider(indent: 100),
             _buildFabMenuItem(
               icon: Icons.campaign,

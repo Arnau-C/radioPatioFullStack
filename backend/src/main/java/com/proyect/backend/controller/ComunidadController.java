@@ -7,7 +7,7 @@ import com.proyect.backend.repository.ComunidadRepository;
 import com.proyect.backend.repository.UsuarioRepository;
 import com.proyect.backend.service.ComunidadService;
 import com.proyect.backend.service.InvitationService;
-
+import com.proyect.backend.dto.PermisosVecinoRequest;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.ResponseEntity;
@@ -127,6 +127,31 @@ public class ComunidadController {
         comunidadService.expulsarMiembro(comunidadId, usernameExpulsado, usernamePresidente);
         
         return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/{comunidadId}/miembros/{usernameVecino}/permisos")
+    public ResponseEntity<?> actualizarPermisos(
+            @PathVariable Long comunidadId,
+            @PathVariable String usernameVecino,
+            @RequestBody PermisosVecinoRequest request,
+            Authentication authentication) {
+        
+        String usernamePresidente = authentication.getName(); // Saca quién está logueado
+        
+        System.out.println("PERMISOS RECIBIDOS PARA " + usernameVecino + " -> Avisos: " + request.isPermisoCrearAvisos() + ", Docs: " + request.isPermisoGestionarDocumentos());
+        
+        try {
+            comunidadService.actualizarPermisosVecino(
+                comunidadId, 
+                usernameVecino, 
+                usernamePresidente, 
+                request.isPermisoCrearAvisos(), 
+                request.isPermisoGestionarDocumentos()
+            );
+            return ResponseEntity.ok(Map.of("mensaje", "Permisos actualizados correctamente"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
     
 }

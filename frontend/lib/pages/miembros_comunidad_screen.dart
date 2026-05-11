@@ -51,8 +51,96 @@ class _MiembrosComunidadScreenState extends State<MiembrosComunidadScreen> {
     }
   }
 
+  // --- NUEVA FUNCIÓN: Llamada al backend para guardar permisos ---
+  Future<void> _actualizarPermisos(int index, String usernameVecino, bool pAvisos, bool pDocs) async {
+    final url = Uri.parse('${ApiClient.baseUrl}/comunidades/${widget.comunidadId}/miembros/$usernameVecino/permisos');
+    try {
+      final response = await http.put(
+        url,
+        headers: {
+          'Authorization': 'Bearer ${widget.tokenJwt}',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'permisoCrearAvisos': pAvisos,
+          'permisoGestionarDocumentos': pDocs,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          // Actualizamos la lista local para que no haga falta recargar la pantalla
+          miembros[index]['permisoCrearAvisos'] = pAvisos;
+          miembros[index]['permisoGestionarDocumentos'] = pDocs;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Permisos actualizados'), backgroundColor: Colors.green)
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error al actualizar permisos'), backgroundColor: Colors.red)
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error al actualizar permisos: $e');
+    }
+  }
+
+  // --- NUEVA FUNCIÓN: Ventanita del formulario ---
+  void _mostrarDialogoPermisos(Map<String, dynamic> vecino, int index) {
+    // Leemos lo que viene de base de datos (por si son nulos, ponemos false por defecto)
+    bool pAvisos = vecino['permisoCrearAvisos'] ?? false;
+    bool pDocs = vecino['permisoGestionarDocumentos'] ?? false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: Text("Permisos de @${vecino['username']}"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SwitchListTile(
+                title: const Text("Crear Avisos"),
+                subtitle: const Text("Permitir que publique avisos en el tablón"),
+                value: pAvisos,
+                activeColor: Colors.teal,
+                onChanged: (val) => setDialogState(() => pAvisos = val),
+              ),
+              SwitchListTile(
+                title: const Text("Ver Documentos"),
+                subtitle: const Text("Acceso a la zona de administración"),
+                value: pDocs,
+                activeColor: Colors.teal,
+                onChanged: (val) => setDialogState(() => pDocs = val),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancelar", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+              onPressed: () {
+                _actualizarPermisos(index, vecino['username'], pAvisos, pDocs);
+                Navigator.pop(context);
+              },
+              child: const Text("Guardar", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _expulsarVecino(String usernameExpulsado) async {
-    // Confirmación antes de borrar
     bool confirmar = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -79,7 +167,6 @@ class _MiembrosComunidadScreenState extends State<MiembrosComunidadScreen> {
 
       if (response.statusCode == 200) {
         setState(() {
-          // Lo quitamos de la lista al instante
           miembros.removeWhere((m) => m['username'] == usernameExpulsado);
         });
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vecino expulsado correctamente'), backgroundColor: Colors.green));
@@ -107,7 +194,6 @@ class _MiembrosComunidadScreenState extends State<MiembrosComunidadScreen> {
                 final String rol = miembro['rol'] ?? 'USER';
                 final String username = miembro['username'] ?? 'Desconocido';
                 
-                // Evitar que el presidente se expulse a sí mismo
                 final bool esElMismo = rol == 'PRESIDENTE'; 
 
                 return ListTile(
@@ -117,11 +203,23 @@ class _MiembrosComunidadScreenState extends State<MiembrosComunidadScreen> {
                   ),
                   title: Text('@$username', style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text(rol == 'PRESIDENTE' ? 'Presidente' : 'Vecino'),
+                  
+                  // --- AQUÍ ESTÁ EL CAMBIO: Ponemos los dos botones juntos ---
                   trailing: (widget.isPresidente && !esElMismo)
-                      ? IconButton(
-                          icon: const Icon(Icons.person_remove, color: Colors.red),
-                          onPressed: () => _expulsarVecino(username),
-                          tooltip: 'Expulsar de la comunidad',
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.admin_panel_settings, color: Colors.blueGrey),
+                              onPressed: () => _mostrarDialogoPermisos(miembro, index),
+                              tooltip: 'Gestionar permisos',
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.person_remove, color: Colors.red),
+                              onPressed: () => _expulsarVecino(username),
+                              tooltip: 'Expulsar de la comunidad',
+                            ),
+                          ],
                         )
                       : null,
                 );

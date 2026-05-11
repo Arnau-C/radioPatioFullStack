@@ -66,6 +66,8 @@ public class AuthService {
                 .apellidos(user.getApellidos())
                 .email(user.getEmail())
                 .rol(user.getRol())
+                .permisoCrearAvisos(user.isPermisoCrearAvisos())
+                .permisoGestionarDocumentos(user.isPermisoGestionarDocumentos())
                 .build();
     }
 
@@ -138,6 +140,8 @@ public class AuthService {
                     .apellidos(user.getApellidos())
                     .email(user.getEmail())
                     .rol(user.getRol())
+                    .permisoCrearAvisos(user.isPermisoCrearAvisos())
+                    .permisoGestionarDocumentos(user.isPermisoGestionarDocumentos())
                     .build();
 
         } catch (BadCredentialsException e) {

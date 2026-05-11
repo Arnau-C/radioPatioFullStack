@@ -35,6 +35,10 @@ class AppUser {
   /// Puede ser usado por el backend para implementar políticas de bloqueo de cuentas.
   final int intentosFallidos;
 
+  final bool permisoCrearAvisos;
+
+  final bool permisoGestionarDocumentos;
+
   /// Constructor principal para crear una instancia de `AppUser`.
   AppUser({
     this.id,
@@ -45,6 +49,8 @@ class AppUser {
     required this.rol,
     this.cuentaBloqueada = false,
     this.intentosFallidos = 0,
+    this.permisoCrearAvisos = false,
+    this.permisoGestionarDocumentos = false,
   });
 
   /// [AppUser.fromJson]
@@ -64,6 +70,8 @@ class AppUser {
       rol: json['rol'] ?? 'USER',
       cuentaBloqueada: json['cuentaBloqueada'] ?? false,
       intentosFallidos: json['intentosFallidos'] ?? 0,
+      permisoCrearAvisos: json['permisoCrearAvisos'] ?? false,
+      permisoGestionarDocumentos: json['permisoGestionarDocumentos'] ?? false,
     );
   }
 
@@ -82,6 +90,8 @@ class AppUser {
       'rol': rol,
       'cuentaBloqueada': cuentaBloqueada,
       'intentosFallidos': intentosFallidos,
+      'permisoCrearAvisos': permisoCrearAvisos,
+      'permisoGestionarDocumentos': permisoGestionarDocumentos,
     };
   }
 }

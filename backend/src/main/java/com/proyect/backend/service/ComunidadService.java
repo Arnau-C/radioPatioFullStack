@@ -47,4 +47,32 @@ public class ComunidadService {
         // 4. Guardamos
         usuarioRepository.save(expulsado);
     }
+
+    @Transactional
+    public void actualizarPermisosVecino(Long comunidadId, String usernameVecino, String usernamePresidente, boolean puedeCrearAvisos, boolean puedeGestionarDocumentos) {
+        
+        // 1. Verificamos que el que hace la petición es el presidente
+        Usuario presidente = usuarioRepository.findByUsername(usernamePresidente)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                
+        if (!presidente.getRol().equals("PRESIDENTE") && !presidente.getRol().equals("ADMIN")) {
+            throw new RuntimeException("Acceso denegado: Solo el presidente puede asignar permisos.");
+        }
+
+        // 2. Buscamos al vecino al que le vamos a dar los permisos
+        Usuario vecino = usuarioRepository.findByUsername(usernameVecino)
+                .orElseThrow(() -> new RuntimeException("Vecino no encontrado"));
+
+        // Comprobamos que realmente está en esa comunidad
+        if (vecino.getComunidad() == null || !vecino.getComunidad().getId().equals(comunidadId)) {
+            throw new RuntimeException("El usuario no pertenece a esta comunidad.");
+        }
+
+        // 3. Aplicamos los nuevos permisos
+        vecino.setPermisoCrearAvisos(puedeCrearAvisos);
+        vecino.setPermisoGestionarDocumentos(puedeGestionarDocumentos);
+
+        // 4. Guardamos los cambios
+        usuarioRepository.save(vecino);
+    }
 }
