@@ -18,4 +18,7 @@ public class AuthResponse {
     private String email;
     private String rol;
     private Long id; 
+    private Long foroId;
+    private boolean permisoCrearAvisos;
+    private boolean permisoGestionarDocumentos;
 }
