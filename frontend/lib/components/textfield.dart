@@ -1,103 +1,113 @@
 import 'package:flutter/material.dart';
 
-class MyTextField
-    extends StatelessWidget {
-  final TextEditingController
-  controller;
+class MyTextField extends StatefulWidget {
+  final TextEditingController controller;
   final String hintText;
   final bool obscureText;
-  // Nueva variable para recibir el mensaje de error (puede ser null si no hay error)
-  final String? errorMsg;
+  final String? Function(String?)? validator;
+  final bool validateOnChange;
+  final IconData? prefixIcon;
 
   const MyTextField({
     super.key,
     required this.controller,
     required this.hintText,
     required this.obscureText,
-    this.errorMsg, // No es 'required' porque al principio no habrá error
+    this.validator,
+    this.validateOnChange = false,
+    this.prefixIcon,
   });
+
+  @override
+  State<MyTextField> createState() => _MyTextFieldState();
+}
+
+class _MyTextFieldState extends State<MyTextField> {
+  late FocusNode _focusNode;
+  bool _hasInteracted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode();
+    _focusNode.addListener(() {
+      if (!_focusNode.hasFocus && !_hasInteracted) {
+        setState(() {
+          _hasInteracted = true;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(
-            horizontal: 25.0,
-          ),
-      child: TextField(
-        controller: controller,
-        obscureText: obscureText,
+      padding: const EdgeInsets.symmetric(horizontal: 25.0),
+      child: TextFormField(
+        controller: widget.controller,
+        obscureText: widget.obscureText,
+        validator: widget.validator,
+        focusNode: _focusNode,
+        autovalidateMode: (widget.validateOnChange || _hasInteracted)
+            ? AutovalidateMode.onUserInteraction
+            : AutovalidateMode.disabled,
         decoration: InputDecoration(
           // Estilos Base
-          enabledBorder:
-              OutlineInputBorder(
-                borderSide:
-                    const BorderSide(
-                      color:
-                          Colors.white,
-                    ),
-                borderRadius:
-                    BorderRadius.circular(
-                      10,
-                    ),
-              ),
-          focusedBorder:
-              OutlineInputBorder(
-                borderSide: BorderSide(
-                  color: Colors
-                      .grey
-                      .shade400,
-                ),
-                borderRadius:
-                    BorderRadius.circular(
-                      10,
-                    ),
-              ),
+          enabledBorder: OutlineInputBorder(
+            borderSide: BorderSide(
+              color: Colors.white.withOpacity(0.5),
+              width: 0.5,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderSide: const BorderSide(
+              color: Colors.white,
+              width: 1.0,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
 
           // Estilos de Error (NUEVO)
-          // Define cómo se ve el borde cuando hay un error (rojo por estándar)
           errorBorder: OutlineInputBorder(
-            borderSide:
-                const BorderSide(
-                  color:
-                      Colors.redAccent,
-                ),
-            borderRadius:
-                BorderRadius.circular(
-                  10,
-                ),
+            borderSide: const BorderSide(color: Colors.redAccent, width: 0.8),
+            borderRadius: BorderRadius.circular(12),
           ),
-          // Define cómo se ve si tocas el campo mientras tiene error
-          focusedErrorBorder:
-              OutlineInputBorder(
-                borderSide:
-                    const BorderSide(
-                      color: Colors.red,
-                    ),
-                borderRadius:
-                    BorderRadius.circular(
-                      10,
-                    ),
-              ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderSide: const BorderSide(color: Colors.red, width: 1.5),
+            borderRadius: BorderRadius.circular(12),
+          ),
 
-          // Mensaje de Error (NUEVO)
-          errorText:
-              errorMsg, // Si esto tiene texto, Flutter activa el modo error
+          // Mensaje de Error
           errorStyle: const TextStyle(
-            // Personalizamos para que se lea bien
             color: Colors.redAccent,
-            fontWeight: FontWeight
-                .bold, // Negrita para mayor visibilidad
-            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
           ),
 
-          fillColor:
-              Colors.grey.shade200,
+          fillColor: Colors.white.withOpacity(0.15),
           filled: true,
-          hintText: hintText,
-          hintStyle: const TextStyle(
-            color: Colors.grey,
+          hintText: widget.hintText,
+          prefixIcon: widget.prefixIcon != null 
+              ? Icon(widget.prefixIcon, color: Colors.black87, size: 20) 
+              : null,
+          contentPadding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 20.0),
+          hintStyle: TextStyle(
+            color: Colors.black87.withValues(alpha: 0.6),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
           ),
+        ),
+        style: const TextStyle(
+          color: Colors.black87,
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );

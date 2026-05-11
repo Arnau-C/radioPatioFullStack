@@ -5,9 +5,12 @@ import 'package:provider/provider.dart';
 
 import 'package:frontend/pages/create_community_page.dart';
 import 'package:frontend/pages/edit_user.dart';
+import 'package:frontend/pages/home_screen.dart';
 import 'package:frontend/pages/login_page.dart';
 import 'package:frontend/providers/user_provider.dart';
 import 'package:frontend/utils/api_client.dart';
+import 'package:flutter/services.dart'; // Para copiar al portapapeles
+import 'package:share_plus/share_plus.dart'; // Para compartir con el menú nativo
 
 class UserPage extends StatefulWidget {
   const UserPage({super.key});
@@ -71,9 +74,8 @@ class _UserPageState extends State<UserPage> {
           // Actualización de estado manual para forzar el repintado
           final userJson = provider.user!.toJson();
           userJson['rol'] = 'VECINO';
+          userJson['token'] = provider.token; // Preservamos el token para no desloguear
           provider.setUser(userJson);
-          // Nota: Deberías idealmente tener un método en el provider para actualizar el rol
-          // Como no veo un método setUser directo, simularemos el repintado
         }
 
         if (mounted) {
@@ -87,9 +89,13 @@ class _UserPageState extends State<UserPage> {
               behavior: SnackBarBehavior.floating,
             ),
           );
-          // Forzamos a recargar los datos del usuario para que se actualice el rol real
-          obtenerCodigoComunidad(username);
-          setState(() {});
+          
+          // Entramos en la comunidad recién unida: Redirigimos a la vista completa del calendario
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+            (Route<dynamic> route) => false,
+          );
         }
       } else {
         final errorData = jsonDecode(response.body);
@@ -461,21 +467,12 @@ class _UserPageState extends State<UserPage> {
                                 ),
                               ),
                             );
-                            if (resultado != null &&
-                                resultado is Map &&
-                                resultado['exito'] == true) {
-                              // Si creó con éxito, obtenemos el código nuevo y simulamos repintado
-                              setState(() {
-                                codigoInvitacionActual =
-                                    resultado['nuevoCodigo'];
-                              });
-                              // Nota: Al volver, el usuario debería volver a hacer login para refrescar el rol en el backend localmente
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    "Por favor, vuelve a iniciar sesión para actualizar tus permisos",
-                                  ),
-                                ),
+                            if (resultado == true) {
+                              // Redirige directamente al panel del calendario
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(builder: (context) => const HomeScreen()),
+                                (Route<dynamic> route) => false,
                               );
                             }
                           },
@@ -531,51 +528,142 @@ class _UserPageState extends State<UserPage> {
               ),
             ),
             if (user.rol == 'PRESIDENTE' && codigoInvitacionActual != null) ...[
-              const Divider(height: 20),
+              const Divider(height: 30),
+              // Contenedor bonito y visual para el código de invitación
               Container(
-                margin: const EdgeInsets.symmetric(horizontal: 40.0),
-                padding: const EdgeInsets.all(15.0),
+                margin: const EdgeInsets.symmetric(horizontal: 10.0),
+                padding: const EdgeInsets.all(20.0),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(15),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFE0F7FA), Color(0xFFB2EBF2)], // Tonos cyan/teal claros y modernos
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(25),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
+                      color: Colors.teal.withOpacity(0.2),
+                      blurRadius: 15,
+                      offset: const Offset(0, 8),
                     ),
                   ],
+                  border: Border.all(color: Colors.teal.withOpacity(0.3), width: 1.5),
                 ),
                 child: Column(
                   children: [
+                    // Icono decorativo superior
+                    const Icon(
+                      Icons.people_alt_rounded,
+                      size: 45,
+                      color: Colors.teal,
+                    ),
+                    const SizedBox(height: 10),
+                    // Título llamativo
                     const Text(
-                      "CÓDIGO DE INVITACIÓN",
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    SelectableText(
-                      codigoInvitacionActual!,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 3,
-                        color: Colors.black87,
-                      ),
+                      "¡Únete a nuestra comunidad de vecinos!",
                       textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.teal,
+                      ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
+                    // Texto explicativo
+                    const Text(
+                      "Comparte este código para que otros vecinos puedan unirse a la app y estar al tanto de todo.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 14, color: Colors.black87),
+                    ),
+                    const SizedBox(height: 25),
+                    // Caja para mostrar y copiar el código
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(15),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 5,
+                            offset: const Offset(0, 3),
+                          )
+                        ]
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // El código en sí
+                          Text(
+                            codigoInvitacionActual!,
+                            style: const TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 4,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(width: 20),
+                          // Botón para copiar al portapapeles
+                          InkWell(
+                            onTap: () {
+                              Clipboard.setData(ClipboardData(text: codigoInvitacionActual!));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('✅ Código copiado al portapapeles'),
+                                  backgroundColor: Colors.teal,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.teal.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.copy_rounded,
+                                color: Colors.teal,
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 25),
+                    // Botón para compartir usando share_plus
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          // Mensaje formateado para WhatsApp u otras apps
+                          final String mensaje = "¡Hola vecino! 👋\n\nÚnete a nuestra comunidad en la app de vecinos.\n\nDescarga la app e introduce el código de invitación: *${codigoInvitacionActual!}* 🏢";
+                          Share.share(mensaje);
+                        },
+                        icon: const Icon(Icons.share_rounded),
+                        label: const Text(
+                          "COMPARTIR CÓDIGO",
+                          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1, fontSize: 16),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.teal,
+                          foregroundColor: Colors.white,
+                          elevation: 4,
+                          shadowColor: Colors.teal.withOpacity(0.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
               const SizedBox(height: 10),
-              const Text(
-                "Comparte este código con tus vecinos",
-                style: TextStyle(fontSize: 11, color: Colors.teal),
-              ),
             ],
           ],
 

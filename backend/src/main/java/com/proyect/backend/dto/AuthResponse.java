@@ -17,8 +17,5 @@ public class AuthResponse {
     private String apellidos;
     private String email;
     private String rol;
-    private Long id;
-
-    private boolean permisoCrearAvisos;
-    private boolean permisoGestionarDocumentos;
+    private Long id; 
 }

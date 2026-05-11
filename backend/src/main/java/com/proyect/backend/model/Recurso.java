@@ -23,6 +23,10 @@ public class Recurso { //Recurso es para el tema de que el presidente pueda crea
 
     private String descripcion;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private String tipoReserva = "POR_HORAS"; // "POR_HORAS" o "POR_DIAS"
+
     @ManyToOne
     @JoinColumn(name = "comunidad_id", nullable = false)
     private Comunidad comunidad;

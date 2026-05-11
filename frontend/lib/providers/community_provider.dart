@@ -100,6 +100,7 @@ class CommunityProvider with ChangeNotifier {
       // Este mapa se devuelve para que el `UserProvider` pueda ser actualizado.
       final updatedUserData = Map<String, dynamic>.from(_userProvider.user!.toJson());
       updatedUserData['rol'] = 'VECINO';
+      updatedUserData['token'] = _userProvider.token; // Preservamos el token para no desloguear
 
       return updatedUserData;
     } catch (e) {
@@ -140,6 +141,7 @@ class CommunityProvider with ChangeNotifier {
       // Se prepara el mapa de datos del usuario actualizado para devolverlo.
       final updatedUserData = Map<String, dynamic>.from(_userProvider.user!.toJson());
       updatedUserData['rol'] = 'PRESIDENTE';
+      updatedUserData['token'] = _userProvider.token; // Preservamos el token para no desloguear
 
       return updatedUserData;
     } catch (e) {

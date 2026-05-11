@@ -1,10 +1,8 @@
 package com.proyect.backend.controller;
 
 import com.proyect.backend.dto.ComunidadRequest;
-import com.proyect.backend.model.Comunidad;
-import com.proyect.backend.model.Usuario;
-import com.proyect.backend.repository.ComunidadRepository;
-import com.proyect.backend.repository.UsuarioRepository;
+import com.proyect.backend.model.*; // Importamos Foro
+import com.proyect.backend.repository.*; // Importamos ForoRepository
 import com.proyect.backend.service.ComunidadService;
 import com.proyect.backend.service.InvitationService;
 import com.proyect.backend.dto.PermisosVecinoRequest;
@@ -18,51 +16,64 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-
 @RestController
 @RequestMapping("/api/comunidades")
 @CrossOrigin(origins = "*")
 @RequiredArgsConstructor
-
 public class ComunidadController {
 
     private final ComunidadRepository comunidadRepository;
     private final UsuarioRepository usuarioRepository;
     private final InvitationService invitationService;
     private final ComunidadService comunidadService;
+    private final ForoRepository foroRepository; // <--- AÑADIDO PARA EL FORO
 
-    @PostMapping("/crear")
-    public ResponseEntity<?> crearComunidad(@RequestBody ComunidadRequest request) {
-        // 1. Buscamos al usuario (el creador será el presidente)
-        Usuario presidente = usuarioRepository.findByUsername(request.getPresidenteUsername())
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+   @PostMapping("/crear")
+public ResponseEntity<?> crearComunidad(@RequestBody ComunidadRequest request) {
+    // 1. Buscamos al usuario (el creador será el presidente)
+    Usuario presidente = usuarioRepository.findByUsername(request.getPresidenteUsername())
+            .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-        if(presidente.getComunidad() != null){
-            return ResponseEntity.badRequest().body("Este usuario ya pertenece a una comunidad");
-        }        
-        // 2. Creamos la Comunidad (SIN CÓDIGO)
-        Comunidad nuevaComunidad = Comunidad.builder()
-                .nombre(request.getNombre())
-                .direccion(request.getDireccion()) // Asegúrate de que en el DTO se llame getDireccion
-                .presidente(presidente)
-                .fechaCreacion(LocalDateTime.now())
-                .build();
+    if(presidente.getComunidad() != null){
+        return ResponseEntity.badRequest().body("Este usuario ya pertenece a una comunidad");
+    }        
 
-        // 3. Guardamos
-        Comunidad comunidadCreada = comunidadRepository.save(nuevaComunidad);
-        String codigo = invitationService.generarCodigoComunidad(comunidadCreada.getId());
+    // 2. Creamos la Comunidad física en la DB
+    Comunidad nuevaComunidad = Comunidad.builder()
+            .nombre(request.getNombre())
+            .direccion(request.getDireccion())
+            .presidente(presidente)
+            .fechaCreacion(LocalDateTime.now())
+            .build();
 
-        presidente.setComunidad(comunidadCreada);
-        presidente.setRol("PRESIDENTE");
-        usuarioRepository.save(presidente);
+    Comunidad comunidadCreada = comunidadRepository.save(nuevaComunidad);
 
-        Map<String, Object> respuesta = new HashMap<>();
-        respuesta.put("mensaje", "Comunidad creada con éxito");
-        respuesta.put("codigoInvitacion", codigo);
-        respuesta.put("idComunidad", comunidadCreada.getId());
+    // 3. CREAMOS EL FORO ÚNICO (Solo una vez)
+    Foro foroComunidad = Foro.builder()
+            .titulo("Foro Vecinal - " + comunidadCreada.getNombre())
+            .descripcion("Chat oficial de comunicación interna")
+            .comunidad(comunidadCreada) 
+            .fechaCreacion(LocalDateTime.now())
+            .build();
+    
+    foroRepository.save(foroComunidad);
 
-        return ResponseEntity.ok(respuesta);
-    }
+    // 4. Lógica de invitación y roles
+    String codigo = invitationService.generarCodigoComunidad(comunidadCreada.getId());
+
+    presidente.setComunidad(comunidadCreada);
+    presidente.setRol("PRESIDENTE");
+    usuarioRepository.save(presidente);
+
+    // 5. Respuesta JSON
+    Map<String, Object> respuesta = new HashMap<>();
+    respuesta.put("mensaje", "Comunidad creada con éxito");
+    respuesta.put("codigoInvitacion", codigo);
+    respuesta.put("idComunidad", comunidadCreada.getId());
+    respuesta.put("foroId", foroComunidad.getId());
+
+    return ResponseEntity.ok(respuesta);
+}
 
     @PostMapping("/unirse")
     public ResponseEntity<?> unirseComunidad(@RequestBody Map<String, String> request) {
@@ -82,9 +93,14 @@ public class ComunidadController {
             usuario.setRol("VECINO");
             usuarioRepository.save(usuario);
 
+          Long foroId = foroRepository.findByComunidadId(comunidad.getId())
+                    .map(Foro::getId)
+                    .orElse(null);
+
             return ResponseEntity.ok(Map.of(
                 "comunidadNombre", comunidad.getNombre(),
-                "rolAsignado", "VECINO"
+                "rolAsignado", "VECINO",
+                "foroId", foroId 
             ));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(400).body(Map.of("error", e.getMessage()));

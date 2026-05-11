@@ -1,5 +1,6 @@
 import axios from 'axios';
 
+
 const API_URL = 'https://radiopatiofullstackbackend.onrender.com/api/foros';
 const getAuthHeaders = () => {
   const userData = JSON.parse(localStorage.getItem('user'));

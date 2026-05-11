@@ -25,9 +25,9 @@ const Navbar = () => {
               Ayuda
             </Link>
             
-            <Link to="/foro" className="text-gray-600 font-bold hover:text-orange-600 transition">
-              Mi Panel
-            </Link>
+            <Link to="/comunidad" className="text-gray-600 font-bold hover:text-orange-600 transition">
+    Tu comunidad
+    </Link>
 
             <button 
               onClick={handleLogout}

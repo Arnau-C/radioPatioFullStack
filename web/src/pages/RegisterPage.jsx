@@ -33,7 +33,6 @@ const RegisterPage = () => {
       alert('¡Registro completado! Ahora puedes iniciar sesión.');
       navigate('/login');
     } catch (err) {
-      // Si el backend devuelve un mensaje de error (ej: email ya existe), lo mostramos
       setError(typeof err === 'string' ? err : 'Error al crear la cuenta');
     }
   };

@@ -1,6 +1,8 @@
 // web/src/services/authService.js
 import axios from 'axios';
 
+//const API_URL = 'https://radiopatiofullstackbackend.onrender.com/api/auth';
+
 const API_URL = 'https://radiopatiofullstackbackend.onrender.com/api/auth';
 
 const authService = {
@@ -34,10 +36,29 @@ const authService = {
       throw error.response ? error.response.data : new Error('Error al registrar');
     }
   },
+ updateProfile: async (username, userData) => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    const token = user?.token;
+
+    
+    const response = await axios.put(`${API_URL}/update/${username}`, userData, {
+      headers: {
+        'Authorization': `Bearer ${token}` 
+      }
+    });
+    
+    const updatedUser = { ...user, ...response.data };
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    
+    return response.data;
+},
+
 
   logout: () => {
     localStorage.removeItem('user');
   }
+
+
 };
 
 export default authService;
