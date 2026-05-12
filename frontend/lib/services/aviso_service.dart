@@ -15,7 +15,6 @@ class AvisoService {
     try {
       final response = await http.get(
         url,
-        // 2. AÑADE LAS CABECERAS CON EL TOKEN:
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -23,33 +22,32 @@ class AvisoService {
       );
 
       if (response.statusCode == 200) {
-        List<dynamic> body = jsonDecode(response.body);
+        // Usamos utf8.decode para evitar problemas con tildes o la 'ñ'
+        List<dynamic> body = jsonDecode(utf8.decode(response.bodyBytes));
         return body.map((dynamic item) => Aviso.fromJson(item)).toList();
       } else {
-        throw Exception('Error 403: No tienes permiso o el token expiró');
+        throw Exception('Error ${response.statusCode}: No tienes permiso para ver los avisos');
       }
     } catch (e) {
       throw Exception('Error de conexión al obtener avisos: $e');
     }
   }
 
-  // Crea un nuevo aviso (Petición POST - Solo Presidente)
-  // Necesitamos el token JWT para la seguridad
+  // Crea un nuevo aviso (Ahora permite Presidente o Vecino con permiso)
   Future<Aviso> crearAviso(
     String titulo,
     String descripcion,
-    DateTime fecha,
+    String comunidadNombre, // <--- Necesario para el backend
     String username,
     String token,
   ) async {
-    final url = Uri.parse(_baseUrl);
-    final fechaStr = DateFormat('yyyy-MM-dd').format(fecha);
+    final url = Uri.parse('$_baseUrl/crear'); // Asegúrate de que el endpoint sea /crear
 
     final Map<String, dynamic> avisoData = {
       'titulo': titulo,
       'descripcion': descripcion,
-      'fecha': fechaStr,
-      'usernameCreador': username,
+      'comunidadNombre': comunidadNombre,
+      'username': username, // <--- Enviamos el autor para validar permisos en el Service
     };
 
     try {
@@ -57,21 +55,25 @@ class AvisoService {
         url,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token', // Vital para la seguridad
+          'Authorization': 'Bearer $token',
         },
         body: jsonEncode(avisoData),
       );
 
       if (response.statusCode == 200) {
-        return Aviso.fromJson(jsonDecode(response.body));
+        return Aviso.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
       } else {
-        final errorData = jsonDecode(response.body);
-        throw Exception(
-          errorData['error'] ?? 'Error al crear aviso: ${response.statusCode}',
-        );
+        // Si el backend lanza un 403, intentamos leer el mensaje de error de tu Map.of("error", ...)
+        try {
+          final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+          throw Exception(errorData['error'] ?? 'Error al crear el aviso');
+        } catch (_) {
+          throw Exception('El servidor rechazó la publicación (Error ${response.statusCode})');
+        }
       }
     } catch (e) {
-      throw Exception('Error de conexión al crear aviso: $e');
+      // Este catch evita el error de "Unexpected end of input" mostrando el mensaje real
+      throw Exception('Error al crear aviso: $e');
     }
   }
 }

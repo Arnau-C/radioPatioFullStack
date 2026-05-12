@@ -51,8 +51,8 @@ class _MiembrosComunidadScreenState extends State<MiembrosComunidadScreen> {
     }
   }
 
-  // --- NUEVA FUNCIÓN: Llamada al backend para guardar permisos ---
-  Future<void> _actualizarPermisos(int index, String usernameVecino, bool pAvisos, bool pDocs) async {
+  // --- ACTUALIZADO: Añadido el parámetro pReservas ---
+  Future<void> _actualizarPermisos(int index, String usernameVecino, bool pAvisos, bool pDocs, bool pReservas) async {
     final url = Uri.parse('${ApiClient.baseUrl}/comunidades/${widget.comunidadId}/miembros/$usernameVecino/permisos');
     try {
       final response = await http.put(
@@ -64,14 +64,16 @@ class _MiembrosComunidadScreenState extends State<MiembrosComunidadScreen> {
         body: jsonEncode({
           'permisoCrearAvisos': pAvisos,
           'permisoGestionarDocumentos': pDocs,
+          'permisoGestionarReservas': pReservas, // <-- Se envía el nuevo permiso al backend
         }),
       );
 
       if (response.statusCode == 200) {
         setState(() {
-          // Actualizamos la lista local para que no haga falta recargar la pantalla
+          // Actualizamos la lista local
           miembros[index]['permisoCrearAvisos'] = pAvisos;
           miembros[index]['permisoGestionarDocumentos'] = pDocs;
+          miembros[index]['permisoGestionarReservas'] = pReservas;
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -79,6 +81,10 @@ class _MiembrosComunidadScreenState extends State<MiembrosComunidadScreen> {
           );
         }
       } else {
+        debugPrint("=== ERROR DEL BACKEND ===");
+        debugPrint("Código de error: ${response.statusCode}");
+        debugPrint("Mensaje del backend: ${response.body}");
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Error al actualizar permisos'), backgroundColor: Colors.red)
@@ -86,15 +92,16 @@ class _MiembrosComunidadScreenState extends State<MiembrosComunidadScreen> {
         }
       }
     } catch (e) {
-      debugPrint('Error al actualizar permisos: $e');
+      debugPrint('Error al actualizar permisos (Excepción): $e');
     }
   }
 
-  // --- NUEVA FUNCIÓN: Ventanita del formulario ---
+  // --- ACTUALIZADO: Añadida la variable y el Switch de Reservas ---
   void _mostrarDialogoPermisos(Map<String, dynamic> vecino, int index) {
-    // Leemos lo que viene de base de datos (por si son nulos, ponemos false por defecto)
+    // Leemos lo que viene de base de datos
     bool pAvisos = vecino['permisoCrearAvisos'] ?? false;
     bool pDocs = vecino['permisoGestionarDocumentos'] ?? false;
+    bool pReservas = vecino['permisoGestionarReservas'] ?? false; // <-- Inicializamos la variable
 
     showDialog(
       context: context,
@@ -119,6 +126,13 @@ class _MiembrosComunidadScreenState extends State<MiembrosComunidadScreen> {
                 activeColor: Colors.teal,
                 onChanged: (val) => setDialogState(() => pDocs = val),
               ),
+              SwitchListTile(
+                title: const Text("Gestionar Zonas"),
+                subtitle: const Text("Permitir crear o borrar espacios de reserva"),
+                value: pReservas, // <-- Usamos la variable
+                activeColor: Colors.teal,
+                onChanged: (val) => setDialogState(() => pReservas = val),
+              ),
             ],
           ),
           actions: [
@@ -129,7 +143,8 @@ class _MiembrosComunidadScreenState extends State<MiembrosComunidadScreen> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
               onPressed: () {
-                _actualizarPermisos(index, vecino['username'], pAvisos, pDocs);
+                // <-- Pasamos pReservas a la función
+                _actualizarPermisos(index, vecino['username'], pAvisos, pDocs, pReservas);
                 Navigator.pop(context);
               },
               child: const Text("Guardar", style: TextStyle(color: Colors.white)),
@@ -204,7 +219,6 @@ class _MiembrosComunidadScreenState extends State<MiembrosComunidadScreen> {
                   title: Text('@$username', style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text(rol == 'PRESIDENTE' ? 'Presidente' : 'Vecino'),
                   
-                  // --- AQUÍ ESTÁ EL CAMBIO: Ponemos los dos botones juntos ---
                   trailing: (widget.isPresidente && !esElMismo)
                       ? Row(
                           mainAxisSize: MainAxisSize.min,

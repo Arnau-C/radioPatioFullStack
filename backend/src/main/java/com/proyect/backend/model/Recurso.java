@@ -5,6 +5,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.List;
 
 @Data
 @Builder
@@ -12,7 +15,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Entity
 @Table(name = "recursos")
-public class Recurso { //Recurso es para el tema de que el presidente pueda crear plazas personalizadas para las reservas
+public class Recurso { 
  
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,11 +26,17 @@ public class Recurso { //Recurso es para el tema de que el presidente pueda crea
 
     private String descripcion;
 
+    // 👇 ELIMINAMOS tipoReserva Y AÑADIMOS EL NUEVO LÍMITE 👇
     @Column(nullable = false)
     @Builder.Default
-    private String tipoReserva = "POR_HORAS"; // "POR_HORAS" o "POR_DIAS"
+    private Integer maxHorasReserva = 1; // Por defecto le ponemos 2 horas
 
     @ManyToOne
     @JoinColumn(name = "comunidad_id", nullable = false)
     private Comunidad comunidad;
+
+    @OneToMany(mappedBy = "recurso", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    @ToString.Exclude
+    private List<Reserva> reservas;
 }

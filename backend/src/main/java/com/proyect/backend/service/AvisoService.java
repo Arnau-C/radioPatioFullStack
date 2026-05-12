@@ -22,11 +22,30 @@ public class AvisoService {
         return avisoRepository.findAllByFechaAvisoOrderByIdDesc(fecha);
     }
 
-    // Crea un nuevo aviso. Solo debería llamarse si el usuario es PRESIDENTE (chequeo en controlador)
+    // --- NUEVO MÉTODO DE SEGURIDAD PARA AVISOS ---
+    private void validarPermisosAvisos(String username) {
+        Usuario usuario = usuarioRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        
+        // Verificamos si es Presidente o si tiene el permiso de gestión activado
+        boolean esPresidente = "PRESIDENTE".equals(usuario.getRol());
+        boolean tienePermiso = usuario.isPermisoGestionarReservas(); // Ajusta al nombre de tu booleano de permisos
+
+        if (!esPresidente && !tienePermiso) {
+            throw new RuntimeException("Acceso denegado: No tienes permisos para publicar avisos en la comunidad.");
+        }
+    }
+
+    // Crea un nuevo aviso validando permisos internamente
     public Aviso crearAviso(String titulo, String descripcion, LocalDate fecha, String usernameCreador) {
+        
+        // 1. Validamos que el autor tenga permiso antes de hacer nada
+        validarPermisosAvisos(usernameCreador);
+
         Usuario creador = usuarioRepository.findByUsername(usernameCreador)
                 .orElseThrow(() -> new RuntimeException("Usuario creador no encontrado"));
 
+        // 2. Construimos el aviso
         Aviso nuevoAviso = Aviso.builder()
                 .titulo(titulo)
                 .descripcion(descripcion)

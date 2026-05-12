@@ -30,6 +30,7 @@ class DocumentoService {
     String nombre,
     String comunidadNombre,
     String token,
+    String username, // <--- Nuevo parámetro
   ) async {
     final url = Uri.parse('$_baseUrl/carpetas');
     final response = await http.post(
@@ -38,27 +39,20 @@ class DocumentoService {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       },
-      body: jsonEncode({'nombre': nombre, 'comunidadNombre': comunidadNombre}),
+      body: jsonEncode({
+        'nombre': nombre, 
+        'comunidadNombre': comunidadNombre,
+        'username': username // <--- Enviado al backend
+      }),
     );
     if (response.statusCode != 200) throw Exception('Error al crear carpeta');
-  }
-
-  Future<void> borrarDocumento(int id, String token) async {
-    final url = Uri.parse('$_baseUrl/$id');
-    final response = await http.delete(
-      url,
-      headers: {'Authorization': 'Bearer $token'},
-    );
-    if (response.statusCode != 200) {
-      final err = jsonDecode(response.body);
-      throw Exception(err['error'] ?? 'Error al borrar el archivo');
-    }
   }
 
   Future<void> renombrarCarpeta(
     int id,
     String nuevoNombre,
     String token,
+    String username, // <--- Nuevo parámetro
   ) async {
     final url = Uri.parse('$_baseUrl/carpetas/$id');
     final response = await http.put(
@@ -67,13 +61,17 @@ class DocumentoService {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       },
-      body: jsonEncode({'nuevoNombre': nuevoNombre}),
+      body: jsonEncode({
+        'nuevoNombre': nuevoNombre,
+        'username': username // <--- Enviado al backend
+      }),
     );
     if (response.statusCode != 200) throw Exception('Error al renombrar');
   }
 
-  Future<void> borrarCarpeta(int id, String token) async {
-    final url = Uri.parse('$_baseUrl/carpetas/$id');
+  Future<void> borrarCarpeta(int id, String token, String username) async {
+    // Para el DELETE, lo enviamos como Query Parameter (?username=...)
+    final url = Uri.parse('$_baseUrl/carpetas/$id?username=$username');
     final response = await http.delete(
       url,
       headers: {'Authorization': 'Bearer $token'},
@@ -124,8 +122,7 @@ class DocumentoService {
         await http.MultipartFile.fromPath(
           'file',
           file.path!,
-          filename:
-              file.name, // <--- SOLUCIÓN: Java ya sabe cómo se llama el archivo
+          filename: file.name,
           contentType: MediaType('application', 'pdf'),
         ),
       );
@@ -135,16 +132,11 @@ class DocumentoService {
     var response = await http.Response.fromStream(streamedResponse);
 
     if (response.statusCode != 200) {
-      // SOLUCIÓN: Si Render devuelve un HTML de error, esto no crashea
       try {
         final errorData = jsonDecode(response.body);
-        throw Exception(
-          errorData['error'] ?? 'Error desconocido en el servidor',
-        );
+        throw Exception(errorData['error'] ?? 'Error desconocido');
       } catch (e) {
-        throw Exception(
-          'El servidor de Render rechazó el archivo (Error ${response.statusCode})',
-        );
+        throw Exception('Error del servidor (Código ${response.statusCode})');
       }
     }
   }
@@ -153,6 +145,7 @@ class DocumentoService {
     int docId,
     int nuevaCarpetaId,
     String token,
+    String username, // <--- Nuevo parámetro
   ) async {
     final url = Uri.parse('$_baseUrl/mover/$docId');
     final response = await http.put(
@@ -161,8 +154,24 @@ class DocumentoService {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       },
-      body: jsonEncode({'nuevaCarpetaId': nuevaCarpetaId}),
+      body: jsonEncode({
+        'nuevaCarpetaId': nuevaCarpetaId,
+        'username': username // <--- Enviado al backend
+      }),
     );
     if (response.statusCode != 200) throw Exception('Error al mover documento');
+  }
+
+  Future<void> borrarDocumento(int id, String token, String username) async {
+    // Para el DELETE, lo enviamos como Query Parameter
+    final url = Uri.parse('$_baseUrl/$id?username=$username');
+    final response = await http.delete(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode != 200) {
+      final err = jsonDecode(response.body);
+      throw Exception(err['error'] ?? 'Error al borrar el archivo');
+    }
   }
 }

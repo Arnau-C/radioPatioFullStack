@@ -21,4 +21,5 @@ public class AuthResponse {
     private Long foroId;
     private boolean permisoCrearAvisos;
     private boolean permisoGestionarDocumentos;
+    private boolean permisoGestionarReservas;
 }

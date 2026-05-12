@@ -70,6 +70,7 @@ private final ForoRepository foroRepository;
                 .rol(user.getRol())
                 .permisoCrearAvisos(user.isPermisoCrearAvisos())
                 .permisoGestionarDocumentos(user.isPermisoGestionarDocumentos())
+                .permisoGestionarReservas(user.isPermisoGestionarReservas())
                 .build();
     }
 
@@ -152,6 +153,7 @@ private final ForoRepository foroRepository;
                     .rol(user.getRol())
                     .permisoCrearAvisos(user.isPermisoCrearAvisos())
                     .permisoGestionarDocumentos(user.isPermisoGestionarDocumentos())
+                    .permisoGestionarReservas(user.isPermisoGestionarReservas())
                     .foroId(foroId)
                     .build();
 

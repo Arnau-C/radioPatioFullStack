@@ -2,13 +2,15 @@ class Recurso {
   final int id;
   final String nombre;
   final String? descripcion;
-  final String tipoReserva;
+  
+  // En Dart usamos 'int' o 'int?' en lugar del 'private Integer' de Java
+  final int maxHorasReserva; 
 
   Recurso({
     required this.id,
     required this.nombre,
     this.descripcion,
-    required this.tipoReserva,
+    this.maxHorasReserva = 2, // Le damos 2 horas por defecto por si el backend no manda nada
   });
 
   factory Recurso.fromJson(Map<String, dynamic> json) {
@@ -16,7 +18,8 @@ class Recurso {
       id: json['id'],
       nombre: json['nombre'],
       descripcion: json['descripcion'],
-      tipoReserva: json['tipoReserva'] ?? 'POR_HORAS',
+      // Recogemos el nuevo campo de la base de datos
+      maxHorasReserva: json['maxHorasReserva'] ?? 2, 
     );
   }
 
@@ -24,7 +27,8 @@ class Recurso {
     return {
       'nombre': nombre,
       'descripcion': descripcion,
-      'tipoReserva': tipoReserva,
+      // Enviamos el nuevo campo al backend al crear
+      'maxHorasReserva': maxHorasReserva, 
     };
   }
 }

@@ -49,7 +49,7 @@ public class ComunidadService {
     }
 
     @Transactional
-    public void actualizarPermisosVecino(Long comunidadId, String usernameVecino, String usernamePresidente, boolean puedeCrearAvisos, boolean puedeGestionarDocumentos) {
+    public void actualizarPermisosVecino(Long comunidadId, String usernameVecino, String usernamePresidente, boolean puedeCrearAvisos, boolean puedeGestionarDocumentos, boolean puedeGestionarReservas) {
         
         // 1. Verificamos que el que hace la petición es el presidente
         Usuario presidente = usuarioRepository.findByUsername(usernamePresidente)
@@ -71,8 +71,7 @@ public class ComunidadService {
         // 3. Aplicamos los nuevos permisos
         vecino.setPermisoCrearAvisos(puedeCrearAvisos);
         vecino.setPermisoGestionarDocumentos(puedeGestionarDocumentos);
-
-        // 4. Guardamos los cambios
+        vecino.setPermisoGestionarReservas(puedeGestionarReservas);
         usuarioRepository.save(vecino);
     }
 }

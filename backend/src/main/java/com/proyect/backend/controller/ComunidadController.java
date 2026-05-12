@@ -162,7 +162,8 @@ public ResponseEntity<?> crearComunidad(@RequestBody ComunidadRequest request) {
                 usernameVecino, 
                 usernamePresidente, 
                 request.isPermisoCrearAvisos(), 
-                request.isPermisoGestionarDocumentos()
+                request.isPermisoGestionarDocumentos(),
+                request.isPermisoGestionarReservas()
             );
             return ResponseEntity.ok(Map.of("mensaje", "Permisos actualizados correctamente"));
         } catch (RuntimeException e) {

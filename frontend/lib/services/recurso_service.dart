@@ -23,7 +23,7 @@ class RecursoService {
     }
   }
 
-  Future<Recurso> crearRecurso(int comunidadId, String nombre, String descripcion, String tipoReserva, String token) async {
+  Future<Recurso> crearRecurso(int comunidadId, String nombre, String descripcion, int maxHorasReserva, String token) async {
     final url = Uri.parse('${ApiClient.baseUrl}/recursos/$comunidadId');
 
     final response = await http.post(
@@ -35,7 +35,7 @@ class RecursoService {
       body: jsonEncode({
         'nombre': nombre,
         'descripcion': descripcion,
-        'tipoReserva': tipoReserva,
+        'maxHorasReserva': maxHorasReserva,
       }),
     );
 

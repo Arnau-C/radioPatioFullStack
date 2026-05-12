@@ -64,7 +64,7 @@ class _PresidentPanelScreenState extends State<PresidentPanelScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al cargar recursos')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error al cargar recursos')));
       }
     }
   }
@@ -73,7 +73,8 @@ class _PresidentPanelScreenState extends State<PresidentPanelScreen> {
     final token = Provider.of<UserProvider>(context, listen: false).token;
     final TextEditingController nombreController = TextEditingController();
     final TextEditingController descController = TextEditingController();
-    String tipoReserva = 'POR_HORAS';
+    // NUEVO: Controlador para el número de horas (por defecto "2")
+    final TextEditingController horasController = TextEditingController(text: '2'); 
 
     showDialog(
       context: context,
@@ -93,19 +94,16 @@ class _PresidentPanelScreenState extends State<PresidentPanelScreen> {
                   decoration: const InputDecoration(labelText: 'Descripción corta'),
                 ),
                 const SizedBox(height: 15),
-                DropdownButtonFormField<String>(
-                  value: tipoReserva,
-                  decoration: const InputDecoration(labelText: 'Modo de reserva'),
-                  items: const [
-                    DropdownMenuItem(value: 'POR_HORAS', child: Text('Por bloques de horas')),
-                    DropdownMenuItem(value: 'POR_DIAS', child: Text('Por días enteros')),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) {
-                      setDialogState(() => tipoReserva = val);
-                    }
-                  },
-                )
+                // NUEVO: Input numérico para las horas
+                TextField(
+                  controller: horasController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Horas máximas por reserva',
+                    hintText: 'Ej: 2',
+                    icon: Icon(Icons.timer),
+                  ),
+                ),
               ],
             ),
           ),
@@ -116,13 +114,18 @@ class _PresidentPanelScreenState extends State<PresidentPanelScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
-                if (nombreController.text.isEmpty) return;
+                if (nombreController.text.isEmpty || horasController.text.isEmpty) return;
+                
+                // Convertimos el texto a número
+                int maxHoras = int.tryParse(horasController.text) ?? 2;
+
                 try {
+                  // OJO: Tu recurso_service.dart tiene que estar actualizado para enviar este INT
                   await _recursoService.crearRecurso(
                     _comunidadId!,
                     nombreController.text.trim(),
                     descController.text.trim(),
-                    tipoReserva,
+                    maxHoras, // 👈 Pasamos el número en vez del String tipoReserva
                     token!,
                   );
                   if (mounted) {
@@ -148,7 +151,7 @@ class _PresidentPanelScreenState extends State<PresidentPanelScreen> {
       await _recursoService.eliminarRecurso(recursoId, token!);
       _cargarRecursos(token);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al eliminar')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error al eliminar')));
     }
   }
 
@@ -179,11 +182,13 @@ class _PresidentPanelScreenState extends State<PresidentPanelScreen> {
                               return Card(
                                 child: ListTile(
                                   leading: Icon(
-                                    recurso.tipoReserva == 'POR_HORAS' ? Icons.access_time : Icons.calendar_today,
+                                    Icons.sports_tennis, // Icono genérico para espacios
                                     color: accentColor,
                                   ),
                                   title: Text(recurso.nombre, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  subtitle: Text(recurso.descripcion ?? 'Sin descripción'),
+                                  // Añadimos la info del límite al subtítulo
+                                  subtitle: Text('${recurso.descripcion ?? ''}\nLímite: ${recurso.maxHorasReserva} hrs/reserva'),
+                                  isThreeLine: true,
                                   trailing: IconButton(
                                     icon: const Icon(Icons.delete, color: Colors.red),
                                     onPressed: () => _eliminarRecurso(recurso.id),

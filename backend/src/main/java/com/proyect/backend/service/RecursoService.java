@@ -24,20 +24,25 @@ public class RecursoService {
     private UsuarioRepository usuarioRepository;
 
     public Recurso crearRecurso(Recurso nuevoRecurso, Long comunidadId, String usernamePresidente) {
-        Usuario presidente = usuarioRepository.findByUsername(usernamePresidente)
-                .orElseThrow(() -> new IllegalArgumentException("Presidente no encontrado"));
+        Usuario usuario = usuarioRepository.findByUsername(usernamePresidente)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
 
         Comunidad comunidad = comunidadRepository.findById(comunidadId)
                 .orElseThrow(() -> new IllegalArgumentException("Comunidad no encontrada"));
 
-        // Validar permisos
-        if (!"PRESIDENTE".equals(presidente.getRol()) || !comunidad.getId().equals(presidente.getComunidad().getId())) {
+        // LÓGICA DE PERMISOS
+        boolean esPresidente = "PRESIDENTE".equals(usuario.getRol());
+        boolean tienePermiso = usuario.isPermisoGestionarReservas(); 
+
+        if (!(esPresidente || tienePermiso) || !comunidad.getId().equals(usuario.getComunidad().getId())) {
             throw new IllegalStateException("No tienes permisos para crear recursos en esta comunidad.");
         }
 
         nuevoRecurso.setComunidad(comunidad);
-        if (nuevoRecurso.getTipoReserva() == null) {
-            nuevoRecurso.setTipoReserva("POR_HORAS");
+        
+        // 👇 AQUÍ ESTÁ EL ARREGLO: Usamos el nuevo sistema de horas 👇
+        if (nuevoRecurso.getMaxHorasReserva() == null) {
+            nuevoRecurso.setMaxHorasReserva(2); // Le damos 2 horas por defecto si viene vacío
         }
 
         return recursoRepository.save(nuevoRecurso);
@@ -51,10 +56,13 @@ public class RecursoService {
         Recurso recurso = recursoRepository.findById(recursoId)
                 .orElseThrow(() -> new IllegalArgumentException("Recurso no encontrado"));
                 
-        Usuario presidente = usuarioRepository.findByUsername(usernamePresidente)
-                .orElseThrow(() -> new IllegalArgumentException("Presidente no encontrado"));
+        Usuario usuario = usuarioRepository.findByUsername(usernamePresidente)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+                
+        boolean esPresidente = "PRESIDENTE".equals(usuario.getRol());
+        boolean tienePermiso = usuario.isPermisoGestionarReservas();
 
-        if (!"PRESIDENTE".equals(presidente.getRol()) || !recurso.getComunidad().getId().equals(presidente.getComunidad().getId())) {
+        if (!(esPresidente || tienePermiso) || !recurso.getComunidad().getId().equals(usuario.getComunidad().getId())) {
             throw new IllegalStateException("No tienes permisos para eliminar recursos en esta comunidad.");
         }
 

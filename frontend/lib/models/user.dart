@@ -39,6 +39,8 @@ class AppUser {
 
   final bool permisoGestionarDocumentos;
 
+  final bool permisoGestionarReservas;
+
   /// Constructor principal para crear una instancia de `AppUser`.
   AppUser({
     this.id,
@@ -51,6 +53,7 @@ class AppUser {
     this.intentosFallidos = 0,
     this.permisoCrearAvisos = false,
     this.permisoGestionarDocumentos = false,
+    this.permisoGestionarReservas = false,
   });
 
   /// [AppUser.fromJson]
@@ -72,6 +75,7 @@ class AppUser {
       intentosFallidos: json['intentosFallidos'] ?? 0,
       permisoCrearAvisos: json['permisoCrearAvisos'] ?? false,
       permisoGestionarDocumentos: json['permisoGestionarDocumentos'] ?? false,
+      permisoGestionarReservas: json['permisoGestionarReservas'] ?? false,
     );
   }
 
@@ -92,6 +96,7 @@ class AppUser {
       'intentosFallidos': intentosFallidos,
       'permisoCrearAvisos': permisoCrearAvisos,
       'permisoGestionarDocumentos': permisoGestionarDocumentos,
+      'permisoGestionarReservas': permisoGestionarReservas,
     };
   }
 }

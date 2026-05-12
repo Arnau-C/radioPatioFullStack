@@ -24,14 +24,13 @@ class _ReservaEspaciosScreenState extends State<ReservaEspaciosScreen> {
 
   Recurso? _recursoSeleccionado;
   
-  // Para reservas POR_HORAS
+  // Variables de tiempo
   DateTime _fechaSeleccionada = DateTime.now();
+  int? _horaInicioSeleccionada;
+  int _duracionSeleccionada = 1; // Por defecto 1 hora
+
   List<Reserva> _reservasExistentes = [];
   bool _isLoadingReservas = false;
-
-  // Para reservas POR_DIAS
-  DateTime? _fechaInicioSeleccionada;
-  DateTime? _fechaFinSeleccionada;
 
   final Color primaryDark = const Color(0xFF1A365D);
   final Color accentColor = const Color(0xFFE27D60);
@@ -71,6 +70,7 @@ class _ReservaEspaciosScreenState extends State<ReservaEspaciosScreen> {
         setState(() {
           _reservasExistentes = res;
           _isLoadingReservas = false;
+          _horaInicioSeleccionada = null; // Reiniciar selección al cambiar recurso
         });
       }
     } catch (e) {
@@ -84,15 +84,34 @@ class _ReservaEspaciosScreenState extends State<ReservaEspaciosScreen> {
     if (rec == null) return;
     setState(() {
       _recursoSeleccionado = rec;
-      _fechaInicioSeleccionada = null;
-      _fechaFinSeleccionada = null;
+      _horaInicioSeleccionada = null;
+      _duracionSeleccionada = 1;
     });
     _cargarReservasRecurso(rec.id);
   }
 
+  // --- NUEVA LÓGICA: LÍMITE DIARIO POR USUARIO ---
+  int _calcularHorasRestantesUsuarioHoy() {
+    final username = Provider.of<UserProvider>(context, listen: false).user?.username;
+    if (username == null || _recursoSeleccionado == null) return 0;
+    
+    int horasConsumidasHoy = 0;
+    
+    for (var r in _reservasExistentes) {
+      // Si la reserva es de este usuario Y es del mismo día que ha seleccionado
+      if (r.usuarioUsername == username && DateUtils.isSameDay(r.fechaInicio, _fechaSeleccionada)) {
+        // Sumamos las horas que dura esa reserva
+        horasConsumidasHoy += r.fechaFin.difference(r.fechaInicio).inHours;
+      }
+    }
+    
+    int restante = _recursoSeleccionado!.maxHorasReserva - horasConsumidasHoy;
+    return restante > 0 ? restante : 0;
+  }
+
+  // Comprueba si un bloque de 1 hora exacto está ocupado por CUALQUIER persona
   bool _estaHoraOcupada(DateTime horaAComprobar) {
     for (var r in _reservasExistentes) {
-      // Si la hora a comprobar está entre el inicio (incluido) y el fin (excluido) de alguna reserva
       if ((horaAComprobar.isAtSameMomentAs(r.fechaInicio) || horaAComprobar.isAfter(r.fechaInicio)) &&
           horaAComprobar.isBefore(r.fechaFin)) {
         return true;
@@ -101,17 +120,33 @@ class _ReservaEspaciosScreenState extends State<ReservaEspaciosScreen> {
     return false;
   }
 
-  bool _estanDiasOcupados(DateTime inicio, DateTime fin) {
-    for (var r in _reservasExistentes) {
-      // Si hay solapamiento: inicio1 < fin2 && fin1 > inicio2
-      if (inicio.isBefore(r.fechaFin) && fin.isAfter(r.fechaInicio)) {
-        return true;
+  // Calcula cuántas horas SEGUIDAS puede reservar combinando su límite diario y los huecos libres
+  int _calcularHorasDisponiblesDesde(int horaInicio) {
+    int limiteRestante = _calcularHorasRestantesUsuarioHoy();
+    if (limiteRestante <= 0) return 1; // Fallback por seguridad
+
+    int horasPosibles = 0;
+
+    for (int i = 0; i < limiteRestante; i++) {
+      int horaAComprobar = horaInicio + i;
+      if (horaAComprobar >= 23) break; // El límite de cierre son las 23:00
+
+      DateTime slot = DateTime(_fechaSeleccionada.year, _fechaSeleccionada.month, _fechaSeleccionada.day, horaAComprobar);
+      
+      if (_estaHoraOcupada(slot)) {
+        break; // Si choca con otra persona, cortamos ahí
       }
+      horasPosibles++;
     }
-    return false;
+    return horasPosibles == 0 ? 1 : horasPosibles;
   }
 
-  Future<void> _realizarReserva(DateTime inicio, DateTime fin) async {
+  Future<void> _realizarReserva() async {
+    if (_horaInicioSeleccionada == null) return;
+
+    DateTime fechaInicio = DateTime(_fechaSeleccionada.year, _fechaSeleccionada.month, _fechaSeleccionada.day, _horaInicioSeleccionada!);
+    DateTime fechaFin = fechaInicio.add(Duration(hours: _duracionSeleccionada));
+
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final token = userProvider.token;
     final username = userProvider.user?.username;
@@ -122,19 +157,19 @@ class _ReservaEspaciosScreenState extends State<ReservaEspaciosScreen> {
       final nuevaReserva = Reserva(
         recursoId: _recursoSeleccionado!.id,
         usuarioUsername: username,
-        fechaInicio: inicio,
-        fechaFin: fin,
+        fechaInicio: fechaInicio,
+        fechaFin: fechaFin,
       );
 
       await _reservaService.crearReserva(nuevaReserva, token);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Reserva confirmada!'), backgroundColor: Colors.green));
-        Navigator.pop(context); // Volver al home screen
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Reserva confirmada! 🎉'), backgroundColor: Colors.green));
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e is ReservaException ? e.message : 'Error desconocido'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
       }
     }
   }
@@ -159,10 +194,10 @@ class _ReservaEspaciosScreenState extends State<ReservaEspaciosScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("1. Selecciona el espacio", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text("1. Selecciona el espacio", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blueGrey)),
             const SizedBox(height: 10),
             DropdownButtonFormField<Recurso>(
-              decoration: const InputDecoration(border: OutlineInputBorder()),
+              decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)), filled: true, fillColor: Colors.white),
               hint: const Text('Ej: Pista de Pádel'),
               value: _recursoSeleccionado,
               items: _recursos.map((r) => DropdownMenuItem(value: r, child: Text(r.nombre))).toList(),
@@ -173,23 +208,20 @@ class _ReservaEspaciosScreenState extends State<ReservaEspaciosScreen> {
             if (_recursoSeleccionado != null && _isLoadingReservas)
               const Center(child: CircularProgressIndicator())
             else if (_recursoSeleccionado != null)
-              _buildFormularioParaRecurso(),
+              _buildFormularioReservas(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildFormularioParaRecurso() {
-    bool porHoras = _recursoSeleccionado!.tipoReserva == 'POR_HORAS';
-    return porHoras ? _buildFormularioPorHoras() : _buildFormularioPorDias();
-  }
+  Widget _buildFormularioReservas() {
+    int horasRestantesUsuario = _calcularHorasRestantesUsuarioHoy();
 
-  Widget _buildFormularioPorHoras() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("2. Selecciona el Día", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const Text("2. Selecciona el Día", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blueGrey)),
         const SizedBox(height: 10),
         InkWell(
           onTap: () async {
@@ -200,12 +232,15 @@ class _ReservaEspaciosScreenState extends State<ReservaEspaciosScreen> {
               lastDate: DateTime.now().add(const Duration(days: 90)),
             );
             if (picked != null) {
-              setState(() => _fechaSeleccionada = picked);
+              setState(() {
+                _fechaSeleccionada = picked;
+                _horaInicioSeleccionada = null; // Quitar hora al cambiar de día
+              });
             }
           },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
-            decoration: BoxDecoration(border: Border.all(color: Colors.grey), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(10), color: Colors.white),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -215,8 +250,33 @@ class _ReservaEspaciosScreenState extends State<ReservaEspaciosScreen> {
             ),
           ),
         ),
+        const SizedBox(height: 20),
+
+        // CARTEL INFORMATIVO DEL LÍMITE DIARIO
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: horasRestantesUsuario > 0 ? Colors.blue.shade50 : Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: horasRestantesUsuario > 0 ? Colors.blue.shade200 : Colors.orange.shade300)
+          ),
+          child: Row(
+            children: [
+              Icon(horasRestantesUsuario > 0 ? Icons.info_outline : Icons.warning_amber_rounded, color: horasRestantesUsuario > 0 ? Colors.blue : Colors.orange.shade800),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Límite de ${_recursoSeleccionado!.maxHorasReserva} horas al día.\n'
+                  '${horasRestantesUsuario > 0 ? 'Te quedan $horasRestantesUsuario horas disponibles hoy.' : 'Ya has agotado todas tus horas para este día.'}',
+                  style: TextStyle(color: horasRestantesUsuario > 0 ? Colors.blue.shade900 : Colors.orange.shade900, fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 30),
-        const Text("3. Selecciona la Hora (Tramos de 1 hora)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+
+        const Text("3. Selecciona la Hora de Inicio", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blueGrey)),
         const SizedBox(height: 10),
         Wrap(
           spacing: 10,
@@ -227,22 +287,43 @@ class _ReservaEspaciosScreenState extends State<ReservaEspaciosScreen> {
             bool isPast = timeSlot.isBefore(DateTime.now());
             bool isOccupied = _estaHoraOcupada(timeSlot);
             bool isAvailable = !isPast && !isOccupied;
+            bool isSelected = _horaInicioSeleccionada == hora;
+
+            Color bgColor = isSelected ? primaryDark : (isAvailable ? Colors.green.shade100 : Colors.grey.shade300);
+            Color textColor = isSelected ? Colors.white : (isAvailable ? Colors.green.shade900 : Colors.grey.shade600);
+            String estado = isOccupied ? 'Ocupado' : (isPast ? 'Pasado' : 'Libre');
+            if (isSelected) estado = 'Elegido';
 
             return Material(
-              color: isAvailable ? Colors.green.shade100 : Colors.red.shade100,
+              color: bgColor,
               borderRadius: BorderRadius.circular(8),
+              elevation: isSelected ? 4 : 0,
               child: InkWell(
                 onTap: isAvailable ? () {
-                  _realizarReserva(timeSlot, timeSlot.add(const Duration(hours: 1)));
+                  if (horasRestantesUsuario <= 0) {
+                    // Si ya no le quedan horas, le soltamos un aviso y no le dejamos pintar el botón de azul
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Ya has agotado tu límite diario para este espacio.'), backgroundColor: Colors.orange)
+                    );
+                    return;
+                  }
+                  setState(() {
+                    _horaInicioSeleccionada = hora;
+                    _duracionSeleccionada = 1; // Reseteamos a 1h al tocar una nueva hora
+                  });
                 } : null,
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
                   width: 80,
                   padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    border: isSelected ? Border.all(color: accentColor, width: 2) : null,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   child: Column(
                     children: [
-                      Text('$hora:00', style: TextStyle(fontWeight: FontWeight.bold, color: isAvailable ? Colors.green.shade900 : Colors.red.shade900)),
-                      Text(isOccupied ? 'Ocupado' : (isPast ? 'Pasado' : 'Libre'), style: TextStyle(fontSize: 10, color: isAvailable ? Colors.green.shade700 : Colors.red.shade700)),
+                      Text('$hora:00', style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
+                      Text(estado, style: TextStyle(fontSize: 10, color: textColor, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
                     ],
                   ),
                 ),
@@ -250,49 +331,55 @@ class _ReservaEspaciosScreenState extends State<ReservaEspaciosScreen> {
             );
           }),
         ),
-      ],
-    );
-  }
-
-  Widget _buildFormularioPorDias() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("2. Selecciona Fecha de Inicio y Fin", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        const SizedBox(height: 10),
-        ElevatedButton.icon(
-          icon: const Icon(Icons.date_range),
-          label: Text(_fechaInicioSeleccionada == null ? 'Seleccionar Rango de Días' : '${DateFormat('dd/MM').format(_fechaInicioSeleccionada!)}  al  ${DateFormat('dd/MM').format(_fechaFinSeleccionada!)}'),
-          onPressed: () async {
-            final picked = await showDateRangePicker(
-              context: context,
-              firstDate: DateTime.now(),
-              lastDate: DateTime.now().add(const Duration(days: 90)),
-            );
-            if (picked != null) {
-              if (_estanDiasOcupados(picked.start, picked.end)) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hay fechas ocupadas en ese rango.'), backgroundColor: Colors.red));
-              } else {
-                setState(() {
-                  _fechaInicioSeleccionada = picked.start;
-                  // Si el usuario selecciona del 1 al 2, eso debe cubrir todo el 2, por lo que el fin es el día 3 a las 00:00
-                  _fechaFinSeleccionada = picked.end.add(const Duration(days: 1)); 
-                });
-              }
-            }
-          },
-        ),
-        const SizedBox(height: 30),
-        if (_fechaInicioSeleccionada != null)
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: () => _realizarReserva(_fechaInicioSeleccionada!, _fechaFinSeleccionada!),
-              style: ElevatedButton.styleFrom(backgroundColor: primaryDark, foregroundColor: Colors.white),
-              child: const Text('CONFIRMAR RESERVA DE DÍAS'),
+        
+        // SELECTOR DE DURACIÓN Y BOTÓN (Solo aparece si se ha tocado una hora libre y le quedan horas en el día)
+        if (_horaInicioSeleccionada != null && horasRestantesUsuario > 0) ...[
+          const SizedBox(height: 30),
+          Container(
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.blue.shade200)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("4. Duración de la reserva", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blueGrey)),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<int>(
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                  value: _duracionSeleccionada,
+                  items: List.generate(
+                    _calcularHorasDisponiblesDesde(_horaInicioSeleccionada!),
+                    (index) => DropdownMenuItem(
+                      value: index + 1,
+                      child: Text(index + 1 == 1 ? '1 hora (hasta las ${_horaInicioSeleccionada! + 1}:00)' : '${index + 1} horas (hasta las ${_horaInicioSeleccionada! + index + 1}:00)'),
+                    ),
+                  ),
+                  onChanged: (val) {
+                    setState(() => _duracionSeleccionada = val!);
+                  },
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _realizarReserva,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accentColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      elevation: 5,
+                    ),
+                    child: const Text('CONFIRMAR RESERVA', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+                )
+              ],
             ),
           )
+        ]
       ],
     );
   }

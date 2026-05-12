@@ -12,4 +12,5 @@ import lombok.NoArgsConstructor;
 public class PermisosVecinoRequest {
     private boolean permisoCrearAvisos;
     private boolean permisoGestionarDocumentos;
+    private boolean permisoGestionarReservas;
 }

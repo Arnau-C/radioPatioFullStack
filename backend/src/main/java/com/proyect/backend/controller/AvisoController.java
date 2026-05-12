@@ -37,26 +37,24 @@ public class AvisoController {
         return ResponseEntity.ok(lista);
     }
 
-    // POST /api/avisos -> Crea un aviso (SOLO PRESIDENTE)
-    @PostMapping
-    @PreAuthorize("hasAuthority('PRESIDENTE')")// Seguridad: Solo el rol PRESIDENTE puede entrar aquí
+// Quitamos el @PreAuthorize("hasAuthority('PRESIDENTE')")
+// POST /api/avisos/crear -> Crea un aviso (Presidente o Vecino con permisos)
+    @PostMapping("/crear")
     public ResponseEntity<?> crearAviso(@RequestBody Map<String, Object> payload) {
         try {
-            String titulo = (String) payload.get("titulo");
-            String descripcion = (String) payload.get("descripcion");
-            String fechaStr = (String) payload.get("fecha"); // Viene como YYYY-MM-DD
-            LocalDate fecha = LocalDate.parse(fechaStr);
-            String username = (String) payload.get("usernameCreador");
+            String titulo = payload.get("titulo").toString();
+            String descripcion = payload.get("descripcion").toString();
+            String username = payload.get("username").toString();
+            
+            // 👇 LA SOLUCIÓN: Generamos la fecha aquí para que coincida con el servicio
+            LocalDate fechaHoy = LocalDate.now();
 
-            if (titulo == null || titulo.isEmpty() || descripcion == null || descripcion.isEmpty() || fecha == null) {
-                 return ResponseEntity.badRequest().body(Map.of("error", "Faltan datos obligatorios"));
-            }
-
-            Aviso avisoCreado = avisoService.crearAviso(titulo, descripcion, fecha, username);
-            return ResponseEntity.ok(avisoCreado);
-
+            // Llamamos al servicio con los tipos correctos: String, String, LocalDate, String
+            Aviso nuevo = avisoService.crearAviso(titulo, descripcion, fechaHoy, username);
+            
+            return ResponseEntity.ok(nuevo);
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("error", "Error al crear aviso: " + e.getMessage()));
+            return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
         }
     }
 }

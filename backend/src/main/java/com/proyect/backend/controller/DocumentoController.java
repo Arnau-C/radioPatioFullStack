@@ -7,18 +7,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api/documentos")
@@ -32,43 +29,40 @@ public class DocumentoController {
 
     @GetMapping("/carpetas/{comunidadNombre}")
     public ResponseEntity<List<Carpeta>> getCarpetas(@PathVariable String comunidadNombre) {
-        // Usa el servicio para obtener las carpetas de la comunidad
         return ResponseEntity.ok(documentoService.obtenerCarpetas(comunidadNombre));
     }
 
     @PostMapping("/carpetas")
-    @PreAuthorize("hasAuthority('PRESIDENTE')")
     public ResponseEntity<?> crearCarpeta(@RequestBody Map<String, String> payload) {
         try {
-            // Crea una nueva carpeta usando el servicio
-            Carpeta c = documentoService.crearCarpeta(payload.get("nombre"), payload.get("comunidadNombre"));
+            Carpeta c = documentoService.crearCarpeta(
+                payload.get("nombre"), 
+                payload.get("comunidadNombre"), 
+                payload.get("username")
+            );
             return ResponseEntity.ok(c);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
         }
     }
 
     @PutMapping("/carpetas/{id}")
-    @PreAuthorize("hasAuthority('PRESIDENTE')")
     public ResponseEntity<?> renombrarCarpeta(@PathVariable Long id, @RequestBody Map<String, String> payload) {
         try {
-            // Lógica para renombrar carpetas en el servicio
-            documentoService.renombrarCarpeta(id, payload.get("nuevoNombre"));
+            documentoService.renombrarCarpeta(id, payload.get("nuevoNombre"), payload.get("username"));
             return ResponseEntity.ok(Map.of("mensaje", "Carpeta renombrada exitosamente"));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
         }
     }
 
     @DeleteMapping("/carpetas/{id}")
-    @PreAuthorize("hasAuthority('PRESIDENTE')")
-    public ResponseEntity<?> borrarCarpeta(@PathVariable Long id) {
+    public ResponseEntity<?> borrarCarpeta(@PathVariable Long id, @RequestParam String username) {
         try {
-            // Lógica para borrar carpetas (valida que no tengan PDFs)
-            documentoService.borrarCarpeta(id);
+            documentoService.borrarCarpeta(id, username);
             return ResponseEntity.ok(Map.of("mensaje", "Carpeta borrada exitosamente"));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -76,40 +70,35 @@ public class DocumentoController {
 
     @GetMapping("/carpeta/{carpetaId}")
     public ResponseEntity<List<Documento>> getDocumentos(@PathVariable Long carpetaId) {
-        // Obtiene la lista de PDFs de una carpeta específica
         return ResponseEntity.ok(documentoService.obtenerDocumentosPorCarpeta(carpetaId));
     }
 
     @PostMapping("/subir")
-    public CompletableFuture<ResponseEntity<?>> subirArchivo(
+    public ResponseEntity<?> subirArchivo(
             @RequestParam("file") MultipartFile file,
             @RequestParam("carpetaId") Long carpetaId,
-            @RequestParam("username") String username) throws IOException {
-        
-        // Explicación: Extraemos los datos del MultipartFile de forma sincrónica aquí en el hilo principal.
-        // Si pasamos el MultipartFile completo al hilo @Async, Tomcat podría borrar el archivo temporal
-        // antes de que el hilo en background llegue a leerlo, provocando un error.
-        byte[] fileBytes = file.getBytes();
-        String originalFilename = file.getOriginalFilename();
-        String contentType = file.getContentType();
+            @RequestParam("username") String username) {
+        try {
+            byte[] fileBytes = file.getBytes();
+            String originalFilename = file.getOriginalFilename();
+            String contentType = file.getContentType();
 
-        return documentoService.subirDocumento(fileBytes, originalFilename, contentType, carpetaId, username)
-                // Usamos <ResponseEntity<?>> para que Java acepte cualquier tipo de respuesta
-                .<ResponseEntity<?>>thenApply(doc -> ResponseEntity.ok(doc))
-                .exceptionally(ex -> ResponseEntity.status(500).body(Map.of("error", ex.getMessage())));
+            Documento doc = documentoService.subirDocumento(fileBytes, originalFilename, contentType, carpetaId, username).join();
+            return ResponseEntity.ok(doc);
+        } catch (Exception ex) {
+            return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
+        }
     }
 
     @GetMapping("/descargar/{id}")
     public ResponseEntity<StreamingResponseBody> descargarDocumento(@PathVariable Long id) {
-        // Buscamos el documento por ID para obtener la ruta del archivo físico
         Documento doc = documentoService.obtenerDocumentoPorId(id);
-        File file = new File(doc.getRutaArchivo()); // Usa rutaArchivo del modelo
+        File file = new File(doc.getRutaArchivo());
 
         if (!file.exists()) {
             return ResponseEntity.notFound().build();
         }
 
-        // Enviamos el PDF en "streaming" para ahorrar memoria RAM en el servidor
         StreamingResponseBody responseBody = outputStream -> {
             try (InputStream inputStream = new FileInputStream(file)) {
                 byte[] buffer = new byte[1024];
@@ -121,33 +110,30 @@ public class DocumentoController {
         };
 
         return ResponseEntity.ok()
-                // "inline" permite que el navegador abra el visor de PDF directamente
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + doc.getTitulo() + "\"")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(responseBody);
     }
 
     @PutMapping("/mover/{docId}")
-    @PreAuthorize("hasAuthority('PRESIDENTE')")
-    public ResponseEntity<?> moverDocumento(@PathVariable Long docId, @RequestBody Map<String, Long> payload) {
+    public ResponseEntity<?> moverDocumento(@PathVariable Long docId, @RequestBody Map<String, Object> payload) {
         try {
-            // Lógica para mover un archivo de una carpeta a otra
-            documentoService.moverDocumento(docId, payload.get("nuevaCarpetaId"));
+            Long nuevaCarpetaId = Long.valueOf(payload.get("nuevaCarpetaId").toString());
+            String username = payload.get("username").toString();
+            documentoService.moverDocumento(docId, nuevaCarpetaId, username);
             return ResponseEntity.ok(Map.of("mensaje", "Documento movido"));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
         }
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('PRESIDENTE')")
-    public ResponseEntity<?> borrarDocumento(@PathVariable Long id) {
+    public ResponseEntity<?> borrarDocumento(@PathVariable Long id, @RequestParam String username) {
         try {
-            // Borra el archivo físico y el registro en la base de datos
-            documentoService.borrarDocumento(id);
+            documentoService.borrarDocumento(id, username);
             return ResponseEntity.ok(Map.of("mensaje", "Archivo borrado correctamente"));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
         }
     }
 }

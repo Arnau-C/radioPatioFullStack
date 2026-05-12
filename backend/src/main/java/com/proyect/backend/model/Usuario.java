@@ -60,10 +60,15 @@ public class Usuario implements UserDetails{
     @Builder.Default
     private boolean cuentaBloqueada = false; // Para saber si está bloqueado.
     @Builder.Default
+    @Column(columnDefinition = "boolean default false")
     private boolean permisoCrearAvisos = false; // Por defecto los vecinos no pueden
 
     @Builder.Default
+    @Column(columnDefinition = "boolean default false")
     private boolean permisoGestionarDocumentos = false; // Por defecto no pueden
+    @Builder.Default
+    @Column(columnDefinition = "boolean default false")
+    private boolean permisoGestionarReservas = false;
     @OneToMany(mappedBy = "usuario")
     @ToString.Exclude  // Evita que toString() entre en bucle infinito
     @JsonIgnore // Evita ciclos infinitos en la serialización JSON
