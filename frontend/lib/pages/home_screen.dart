@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -51,21 +52,87 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Número de incidencias pendientes (para el badge de la AppBar).
   int _numeroIncidencias = 0;
 
-  /// [initState]
-  ///
-  /// Inicializa el formato de fecha en español y carga datos iniciales.
+  // --- ESTADO DE AVISOS (reemplaza FutureBuilder) ---
+
+  /// Lista de avisos del día seleccionado.
+  List<Aviso> _avisos = [];
+
+  /// Verdadero solo mientras se carga el primer lote (muestra spinner).
+  bool _cargandoInicial = true;
+
+  /// Mensaje de error si la carga falla.
+  String? _errorAvisos;
+
+  /// Timer para el polling silencioso de avisos.
+  Timer? _pollingTimer;
+
   @override
   void initState() {
     super.initState();
-    // Inicializar el formato de fechas en español para DateFormat.
     initializeDateFormatting('es_ES', null).then((_) {
       _updateFechaHeader();
     });
 
-    // Cargar el número de incidencias tras el primer frame.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _cargarIncidenciasIniciales();
+      _cargarAvisosInicial();
     });
+  }
+
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    super.dispose();
+  }
+
+  // =========================================================================
+  // LÓGICA DE AVISOS CON POLLING SILENCIOSO
+  // =========================================================================
+
+  /// Carga inicial: muestra spinner y arranca el timer de polling.
+  Future<void> _cargarAvisosInicial() async {
+    if (!mounted) return;
+    setState(() {
+      _cargandoInicial = true;
+      _errorAvisos = null;
+    });
+    await _cargarAvisos();
+    _iniciarPolling();
+  }
+
+  /// Arranca (o reinicia) el timer de polling silencioso cada 8 segundos.
+  void _iniciarPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+      _cargarAvisos();
+    });
+  }
+
+  /// Obtiene los avisos del día seleccionado. Actualiza la lista sin spinner.
+  Future<void> _cargarAvisos() async {
+    if (!mounted) return;
+    final token =
+        Provider.of<UserProvider>(context, listen: false).token;
+    if (token == null) return;
+
+    try {
+      final avisos =
+          await _avisoService.getAvisosPorFecha(_fechaSeleccionada, token);
+      if (mounted) {
+        setState(() {
+          _avisos = avisos;
+          _cargandoInicial = false;
+          _errorAvisos = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _cargandoInicial = false;
+          _errorAvisos = e.toString();
+        });
+      }
+    }
   }
 
   /// Carga el número de incidencias si tenemos comunidadId disponible.
@@ -134,6 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _fechaSeleccionada = _fechaSeleccionada.add(const Duration(days: 1));
       _updateFechaHeader();
     });
+    _cargarAvisosInicial();
   }
 
   /// Retrocede al día anterior.
@@ -142,6 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _fechaSeleccionada = _fechaSeleccionada.subtract(const Duration(days: 1));
       _updateFechaHeader();
     });
+    _cargarAvisosInicial();
   }
 
   /// Comprueba si la fecha seleccionada es hoy.
@@ -292,7 +361,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                     // Si el aviso es para el día que estamos viendo, refrescamos.
                     if (DateUtils.isSameDay(fechaAvisoNuevo, _fechaSeleccionada)) {
-                      setState(() {});
+                      _cargarAvisos();
                     }
                   }
                 } catch (e) {
@@ -378,8 +447,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 15),
 
-            // Lista de avisos del día (FutureBuilder).
-            _buildAvisosList(token),
+            // Lista de avisos del día (polling silencioso).
+            _buildAvisosList(),
 
             // Espacio extra al final para que el FAB no tape contenido.
             const SizedBox(height: 80),
@@ -491,57 +560,52 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Lista de avisos del día seleccionado usando FutureBuilder.
-  Widget _buildAvisosList(String token) {
-    return FutureBuilder<List<Aviso>>(
-      future: _avisoService.getAvisosPorFecha(_fechaSeleccionada, token),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: CircularProgressIndicator(color: AppColors.primaryDark),
-            ),
+  /// Lista de avisos del día seleccionado.
+  /// Muestra spinner solo en la carga inicial; las actualizaciones del polling
+  /// se aplican en silencio sin interrumpir la UI.
+  Widget _buildAvisosList() {
+    if (_cargandoInicial) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: CircularProgressIndicator(color: AppColors.primaryDark),
+        ),
+      );
+    }
+
+    if (_errorAvisos != null) {
+      return ErrorStateWidget(
+        message: _errorAvisos!,
+        onRetry: _cargarAvisosInicial,
+      );
+    }
+
+    if (_avisos.isEmpty) {
+      return EmptyStateWidget(
+        icon: Icons.task_alt,
+        iconColor: AppColors.success,
+        title: "¡Todo al día!",
+        subtitle:
+            "No hay avisos para el día ${DateFormat('d MMM', 'es_ES').format(_fechaSeleccionada)}.",
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _avisos.length,
+      itemBuilder: (context, index) => TweenAnimationBuilder(
+        tween: Tween<double>(begin: 0, end: 1),
+        duration: Duration(milliseconds: 300 + (index * 100)),
+        curve: Curves.easeOutQuart,
+        builder: (context, value, child) {
+          return Transform.translate(
+            offset: Offset(0, 30 * (1 - value)),
+            child: Opacity(opacity: value, child: child),
           );
-        } else if (snapshot.hasError) {
-          // Usamos el widget reutilizable del Design System.
-          return ErrorStateWidget(
-            message: snapshot.error.toString(),
-            onRetry: () => setState(() {}),
-          );
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          // Usamos el widget reutilizable del Design System.
-          return EmptyStateWidget(
-            icon: Icons.task_alt,
-            iconColor: AppColors.success,
-            title: "¡Todo al día!",
-            subtitle:
-                "No hay avisos para el día ${DateFormat('d MMM', 'es_ES').format(_fechaSeleccionada)}.",
-          );
-        } else {
-          final avisos = snapshot.data!;
-          return ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: avisos.length,
-            itemBuilder: (context, index) => TweenAnimationBuilder(
-              tween: Tween<double>(begin: 0, end: 1),
-              duration: Duration(milliseconds: 300 + (index * 100)),
-              curve: Curves.easeOutQuart,
-              builder: (context, value, child) {
-                return Transform.translate(
-                  offset: Offset(0, 30 * (1 - value)),
-                  child: Opacity(
-                    opacity: value,
-                    child: child,
-                  ),
-                );
-              },
-              child: _buildAvisoCard(avisos[index]),
-            ),
-          );
-        }
-      },
+        },
+        child: _buildAvisoCard(_avisos[index]),
+      ),
     );
   }
 

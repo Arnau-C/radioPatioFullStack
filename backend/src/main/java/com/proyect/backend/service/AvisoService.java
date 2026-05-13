@@ -17,15 +17,37 @@ public class AvisoService {
     private final AvisoRepository avisoRepository;
     private final UsuarioRepository usuarioRepository;
 
-    // Obtiene los avisos de una fecha
-    public List<Aviso> obtenerAvisosPorFecha(LocalDate fecha) {
-        return avisoRepository.findAllByFechaAvisoOrderByIdDesc(fecha);
+    /**
+     * Devuelve los avisos de una fecha filtrando por la comunidad del usuario autenticado.
+     * Si el usuario no pertenece a ninguna comunidad, devuelve lista vacía.
+     *
+     * @param fecha    Día del que se quieren los avisos.
+     * @param username Username del usuario autenticado (extraído del JWT, nunca del body).
+     */
+    public List<Aviso> obtenerAvisosPorFecha(LocalDate fecha, String username) {
+        Usuario usuario = usuarioRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado."));
+
+        // Sin comunidad asignada → no hay avisos que mostrar
+        if (usuario.getComunidad() == null) {
+            return List.of();
+        }
+
+        return avisoRepository.findByComunidadIdAndFechaAviso(
+                usuario.getComunidad().getId(), fecha);
     }
 
-    // Crea un nuevo aviso. Solo debería llamarse si el usuario es PRESIDENTE (chequeo en controlador)
+    /**
+     * Crea un nuevo aviso vinculado a la comunidad del creador.
+     * El usernameCreador viene del JWT (no del body de la petición).
+     */
     public Aviso crearAviso(String titulo, String descripcion, LocalDate fecha, String usernameCreador) {
         Usuario creador = usuarioRepository.findByUsername(usernameCreador)
-                .orElseThrow(() -> new RuntimeException("Usuario creador no encontrado"));
+                .orElseThrow(() -> new IllegalArgumentException("Usuario creador no encontrado."));
+
+        if (creador.getComunidad() == null) {
+            throw new IllegalStateException("El usuario no pertenece a ninguna comunidad.");
+        }
 
         Aviso nuevoAviso = Aviso.builder()
                 .titulo(titulo)

@@ -2,8 +2,10 @@ package com.proyect.backend.service;
 
 import com.proyect.backend.model.Recurso;
 import com.proyect.backend.model.Reserva;
+import com.proyect.backend.model.Usuario;
 import com.proyect.backend.repository.RecursoRepository;
 import com.proyect.backend.repository.ReservaRepository;
+import com.proyect.backend.repository.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,8 +23,20 @@ public class ReservaService {
     @Autowired
     private RecursoRepository recursoRepository;
 
+    @Autowired
+    private UsuarioRepository usuarioRepository;
+
+    /**
+     * Crea una reserva asociada al usuario autenticado.
+     * El username viene del JWT (extraído en el controlador), nunca del body.
+     */
     @Transactional
-    public Reserva crearReserva(Reserva nuevaReserva) {
+    public Reserva crearReserva(Reserva nuevaReserva, String username) {
+
+        // 0. Resolver el usuario desde JWT — ignorar cualquier usuario que venga en el body
+        Usuario usuario = usuarioRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado."));
+        nuevaReserva.setUsuario(usuario);
 
         // 1. Validaciones básicas de tiempo
         if (nuevaReserva.getFechaInicio().isBefore(LocalDateTime.now())) {
@@ -53,7 +67,7 @@ public class ReservaService {
 
             List<Reserva> reservasDelDia = reservaRepository.findReservasDeUsuarioEnDia(
                     recurso.getId(),
-                    nuevaReserva.getUsuario().getUsername(),
+                    username,
                     inicioDia,
                     finDia
             );

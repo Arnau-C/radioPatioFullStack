@@ -1,44 +1,50 @@
 package com.proyect.backend.controller;
 
 import com.proyect.backend.model.Reserva;
+import com.proyect.backend.model.Usuario;
+import com.proyect.backend.repository.UsuarioRepository;
 import com.proyect.backend.service.ReservaService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/reservas")
+@RequiredArgsConstructor
 public class ReservaController {
 
-    @Autowired
-    private ReservaService reservaService;
+    private final ReservaService reservaService;
+    private final UsuarioRepository usuarioRepository;
 
-    // Endpoint para crear una nueva reserva
+    /**
+     * POST /api/reservas
+     *
+     * El usuario que hace la reserva se extrae del JWT — cualquier campo
+     * "usuario" que venga en el body es ignorado por el servicio.
+     */
     @PostMapping
-    public ResponseEntity<?> crearReserva(@RequestBody Reserva reserva) {
+    public ResponseEntity<?> crearReserva(
+            @RequestBody Reserva reserva,
+            Authentication authentication) {
         try {
-            // Intentamos crear la reserva usando la lógica de nuestro servicio
-            Reserva nuevaReserva = reservaService.crearReserva(reserva);
-            
-            // Si todo va bien, devolvemos un 201 (Created) y la reserva confirmada
+            String username = authentication.getName();
+            Reserva nuevaReserva = reservaService.crearReserva(reserva, username);
             return ResponseEntity.status(HttpStatus.CREATED).body(nuevaReserva);
-            
+
         } catch (IllegalArgumentException e) {
-            // Error 400 (Bad Request): Si las fechas están mal (ej. fin antes de inicio)
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
-                    
+
         } catch (IllegalStateException e) {
-            // Error 409 (Conflict): ¡El error clave! Alguien ya ha reservado a esa hora
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(Map.of("error", e.getMessage()));
-                    
+
         } catch (Exception e) {
-            // Error 500: Por si peta la base de datos o pasa algo raro
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Error interno al procesar la reserva."));
         }
@@ -49,8 +55,27 @@ public class ReservaController {
         return ResponseEntity.ok(reservaService.obtenerReservasPorRecurso(recursoId));
     }
 
+    /**
+     * GET /api/reservas/comunidad/{comunidadId}
+     *
+     * Valida que el comunidadId solicitado coincide con la comunidad
+     * del usuario autenticado — evita que un usuario acceda a reservas
+     * de otra comunidad cambiando el ID en la URL.
+     */
     @GetMapping("/comunidad/{comunidadId}")
-    public ResponseEntity<List<Reserva>> obtenerReservasPorComunidad(@PathVariable Long comunidadId) {
+    public ResponseEntity<?> obtenerReservasPorComunidad(
+            @PathVariable Long comunidadId,
+            Authentication authentication) {
+
+        Usuario usuario = usuarioRepository.findByUsername(authentication.getName())
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado."));
+
+        if (usuario.getComunidad() == null ||
+                !usuario.getComunidad().getId().equals(comunidadId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "No tienes acceso a las reservas de esta comunidad."));
+        }
+
         return ResponseEntity.ok(reservaService.obtenerReservasPorComunidad(comunidadId));
     }
 }
