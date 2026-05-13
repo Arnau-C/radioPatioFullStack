@@ -71,7 +71,7 @@ class AuthService {
     String password,
   ) async {
     final url = Uri.parse(
-      '${ApiClient.baseUrl}/auth/registro/nuevo',
+      '${ApiClient.baseUrl}/auth/registro',
     );
 
     late http.Response response;

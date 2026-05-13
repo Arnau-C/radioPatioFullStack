@@ -29,7 +29,7 @@ public class AuthController {
 
     private final AuthService authService;
 
-    @PutMapping("/registro/nuevo")
+    @PostMapping("/registro")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         // El servicio se encarga de:
         // 1. Crear el usuario
