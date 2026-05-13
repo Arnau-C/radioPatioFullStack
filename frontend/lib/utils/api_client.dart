@@ -1,5 +1,3 @@
-
-
 class ApiClient {
   static String get baseUrl {
     // Si estás con el móvil por cable, pon la IP de tu PC aquí directamente
