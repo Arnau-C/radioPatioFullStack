@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:frontend/models/recurso.dart';
 import 'package:frontend/utils/api_client.dart';
@@ -25,6 +26,16 @@ class RecursoService {
 
   Future<Recurso> crearRecurso(int comunidadId, String nombre, String descripcion, String tipoReserva, String token) async {
     final url = Uri.parse('${ApiClient.baseUrl}/recursos/$comunidadId');
+    final requestBody = jsonEncode({
+      'nombre': nombre,
+      'descripcion': descripcion,
+      'tipoReserva': tipoReserva,
+    });
+
+    // --- DEBUG: imprime la petición completa antes de enviarla ---
+    debugPrint('>>> [crearRecurso] URL   : $url');
+    debugPrint('>>> [crearRecurso] Body  : $requestBody');
+    debugPrint('>>> [crearRecurso] Token : ${token.substring(0, token.length.clamp(0, 30))}...');
 
     final response = await http.post(
       url,
@@ -32,12 +43,12 @@ class RecursoService {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       },
-      body: jsonEncode({
-        'nombre': nombre,
-        'descripcion': descripcion,
-        'tipoReserva': tipoReserva,
-      }),
+      body: requestBody,
     );
+
+    // --- DEBUG: imprime la respuesta completa del servidor ---
+    debugPrint('<<< [crearRecurso] Status: ${response.statusCode}');
+    debugPrint('<<< [crearRecurso] Body  : ${utf8.decode(response.bodyBytes)}');
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       return Recurso.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));

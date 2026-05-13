@@ -30,7 +30,10 @@ public class RecursoController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Error interno"));
+            // Exponemos el error real temporalmente para diagnóstico
+            String detalleError = e.getClass().getSimpleName() + ": " + e.getMessage();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", detalleError));
         }
     }
 

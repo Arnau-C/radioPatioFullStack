@@ -123,6 +123,11 @@ class _PresidentPanelScreenState extends State<PresidentPanelScreen> {
                 final dialogNav = Navigator.of(dialogContext);
                 final screenMessenger = ScaffoldMessenger.of(screenContext);
                 try {
+                  // --- DEBUG: confirma los valores antes de llamar al servicio ---
+                  debugPrint('>>> [PresidentPanel] comunidadId : $_comunidadId');
+                  debugPrint('>>> [PresidentPanel] nombre       : ${nombreController.text.trim()}');
+                  debugPrint('>>> [PresidentPanel] tipoReserva  : $tipoReserva');
+                  debugPrint('>>> [PresidentPanel] token        : ${token.substring(0, token.length.clamp(0, 30))}...');
                   await _recursoService.crearRecurso(
                     _comunidadId!,
                     nombreController.text.trim(),
