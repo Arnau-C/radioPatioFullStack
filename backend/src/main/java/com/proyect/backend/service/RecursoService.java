@@ -48,6 +48,9 @@ public class RecursoService {
         if (nuevoRecurso.getTipoReserva() == null) {
             nuevoRecurso.setTipoReserva("POR_HORAS");
         }
+        if (nuevoRecurso.getMaxHorasReserva() == null) {
+            nuevoRecurso.setMaxHorasReserva(2);
+        }
 
         return recursoRepository.save(nuevoRecurso);
     }

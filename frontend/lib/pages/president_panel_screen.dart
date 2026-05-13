@@ -76,6 +76,7 @@ class _PresidentPanelScreenState extends State<PresidentPanelScreen> {
     final TextEditingController nombreController = TextEditingController();
     final TextEditingController descController = TextEditingController();
     String tipoReserva = 'POR_HORAS';
+    int maxHorasReserva = 2;
 
     showDialog(
       context: screenContext,
@@ -107,7 +108,31 @@ class _PresidentPanelScreenState extends State<PresidentPanelScreen> {
                       setDialogState(() => tipoReserva = val);
                     }
                   },
-                )
+                ),
+                // Solo tiene sentido limitar horas en el modo POR_HORAS
+                if (tipoReserva == 'POR_HORAS') ...[
+                  const SizedBox(height: 15),
+                  DropdownButtonFormField<int>(
+                    initialValue: maxHorasReserva,
+                    decoration: const InputDecoration(
+                      labelText: 'Máximo de horas por reserva',
+                      helperText: 'Tiempo máximo que un vecino puede reservar de una vez',
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 1, child: Text('1 hora')),
+                      DropdownMenuItem(value: 2, child: Text('2 horas')),
+                      DropdownMenuItem(value: 3, child: Text('3 horas')),
+                      DropdownMenuItem(value: 4, child: Text('4 horas')),
+                      DropdownMenuItem(value: 6, child: Text('6 horas')),
+                      DropdownMenuItem(value: 8, child: Text('8 horas (día completo)')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) {
+                        setDialogState(() => maxHorasReserva = val);
+                      }
+                    },
+                  ),
+                ],
               ],
             ),
           ),
@@ -119,20 +144,15 @@ class _PresidentPanelScreenState extends State<PresidentPanelScreen> {
             ElevatedButton(
               onPressed: () async {
                 if (nombreController.text.isEmpty) return;
-                // Capturamos antes del await para evitar usar BuildContext tras gaps asíncronos
                 final dialogNav = Navigator.of(dialogContext);
                 final screenMessenger = ScaffoldMessenger.of(screenContext);
                 try {
-                  // --- DEBUG: confirma los valores antes de llamar al servicio ---
-                  debugPrint('>>> [PresidentPanel] comunidadId : $_comunidadId');
-                  debugPrint('>>> [PresidentPanel] nombre       : ${nombreController.text.trim()}');
-                  debugPrint('>>> [PresidentPanel] tipoReserva  : $tipoReserva');
-                  debugPrint('>>> [PresidentPanel] token        : ${token.substring(0, token.length.clamp(0, 30))}...');
                   await _recursoService.crearRecurso(
                     _comunidadId!,
                     nombreController.text.trim(),
                     descController.text.trim(),
                     tipoReserva,
+                    maxHorasReserva,
                     token,
                   );
                   dialogNav.pop();

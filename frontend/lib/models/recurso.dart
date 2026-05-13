@@ -3,12 +3,14 @@ class Recurso {
   final String nombre;
   final String? descripcion;
   final String tipoReserva;
+  final int maxHorasReserva;
 
   Recurso({
     required this.id,
     required this.nombre,
     this.descripcion,
     required this.tipoReserva,
+    this.maxHorasReserva = 2,
   });
 
   factory Recurso.fromJson(Map<String, dynamic> json) {
@@ -17,6 +19,7 @@ class Recurso {
       nombre: json['nombre'],
       descripcion: json['descripcion'],
       tipoReserva: json['tipoReserva'] ?? 'POR_HORAS',
+      maxHorasReserva: json['maxHorasReserva'] ?? 2,
     );
   }
 
@@ -25,6 +28,7 @@ class Recurso {
       'nombre': nombre,
       'descripcion': descripcion,
       'tipoReserva': tipoReserva,
+      'maxHorasReserva': maxHorasReserva,
     };
   }
 

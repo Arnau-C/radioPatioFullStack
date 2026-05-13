@@ -27,6 +27,10 @@ public class Recurso { //Recurso es para el tema de que el presidente pueda crea
     @Builder.Default
     private String tipoReserva = "POR_HORAS"; // "POR_HORAS" o "POR_DIAS"
 
+    @Column(name = "max_horas_reserva", nullable = false)
+    @Builder.Default
+    private Integer maxHorasReserva = 2; // Máximo de horas por reserva (por defecto 2)
+
     @ManyToOne
     @JoinColumn(name = "comunidad_id", nullable = false)
     private Comunidad comunidad;
