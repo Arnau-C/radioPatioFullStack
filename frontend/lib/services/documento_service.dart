@@ -134,18 +134,16 @@ class DocumentoService {
     var streamedResponse = await request.send();
     var response = await http.Response.fromStream(streamedResponse);
 
-    if (response.statusCode != 200) {
-      // SOLUCIÓN: Si Render devuelve un HTML de error, esto no crashea
+    // Aceptamos 200 OK y 201 Created como respuestas de éxito
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      String errorMsg = 'Error del servidor (${response.statusCode})';
       try {
         final errorData = jsonDecode(response.body);
-        throw Exception(
-          errorData['error'] ?? 'Error desconocido en el servidor',
-        );
-      } catch (e) {
-        throw Exception(
-          'El servidor de Render rechazó el archivo (Error ${response.statusCode})',
-        );
+        errorMsg = errorData['error'] ?? errorData['message'] ?? errorMsg;
+      } catch (_) {
+        // Respuesta no-JSON (HTML de Render, etc.)
       }
+      throw Exception(errorMsg);
     }
   }
 

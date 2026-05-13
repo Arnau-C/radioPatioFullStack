@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/models/recurso.dart';
+import 'package:frontend/providers/community_provider.dart';
 import 'package:frontend/providers/user_provider.dart';
 import 'package:frontend/services/recurso_service.dart';
-import 'package:frontend/utils/api_client.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:provider/provider.dart';
 
 class PresidentPanelScreen extends StatefulWidget {
@@ -26,59 +24,63 @@ class _PresidentPanelScreenState extends State<PresidentPanelScreen> {
   @override
   void initState() {
     super.initState();
-    _cargarDatosBasicos();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _cargarDatos());
   }
 
-  Future<void> _cargarDatosBasicos() async {
+  Future<void> _cargarDatos() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final user = userProvider.user;
+    final communityProvider = Provider.of<CommunityProvider>(context, listen: false);
     final token = userProvider.token;
+    if (token == null) return;
 
-    if (user != null && token != null) {
-      try {
-        final url = Uri.parse('${ApiClient.baseUrl}/comunidades/detalle/${user.username}');
-        final response = await http.get(url, headers: {'Authorization': 'Bearer $token'});
+    // Si el provider ya tiene el communityId cargado, lo usamos directamente
+    if (communityProvider.communityId == null) {
+      await communityProvider.getCommunityDetails();
+    }
 
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          _comunidadId = data['id'] ?? data['comunidadId'];
-          if (_comunidadId != null) {
-            _cargarRecursos(token);
-          }
-        }
-      } catch (e) {
-        debugPrint('Error al obtener comunidad: $e');
-      }
+    _comunidadId = communityProvider.communityId;
+
+    if (_comunidadId != null) {
+      await _cargarRecursos(token);
+    } else {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _cargarRecursos(String token) async {
     try {
       final recursos = await _recursoService.obtenerRecursos(_comunidadId!, token);
-      if (mounted) {
-        setState(() {
-          _recursos = recursos;
-          _isLoading = false;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _recursos = recursos;
+        _isLoading = false;
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al cargar recursos')));
-      }
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al cargar recursos')),
+      );
     }
   }
 
   void _mostrarDialogoNuevoRecurso() {
+    if (_comunidadId == null) return;
     final token = Provider.of<UserProvider>(context, listen: false).token;
+    if (token == null) return;
+
+    // Guardamos el contexto de la pantalla para usarlo en el SnackBar,
+    // ya que el contexto del dialog no tiene acceso al Scaffold principal.
+    final screenContext = context;
+
     final TextEditingController nombreController = TextEditingController();
     final TextEditingController descController = TextEditingController();
     String tipoReserva = 'POR_HORAS';
 
     showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+      context: screenContext,
+      builder: (BuildContext dialogContext) => StatefulBuilder(
+        builder: (BuildContext dialogContext, setDialogState) => AlertDialog(
           title: const Text('Añadir nuevo Espacio'),
           content: SingleChildScrollView(
             child: Column(
@@ -111,26 +113,30 @@ class _PresidentPanelScreenState extends State<PresidentPanelScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () async {
                 if (nombreController.text.isEmpty) return;
+                // Capturamos antes del await para evitar usar BuildContext tras gaps asíncronos
+                final dialogNav = Navigator.of(dialogContext);
+                final screenMessenger = ScaffoldMessenger.of(screenContext);
                 try {
                   await _recursoService.crearRecurso(
                     _comunidadId!,
                     nombreController.text.trim(),
                     descController.text.trim(),
                     tipoReserva,
-                    token!,
+                    token,
                   );
-                  if (mounted) {
-                    Navigator.pop(context);
-                    _cargarRecursos(token);
-                  }
+                  dialogNav.pop();
+                  if (mounted) _cargarRecursos(token);
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  dialogNav.pop();
+                  screenMessenger.showSnackBar(
+                    SnackBar(content: Text('Error al crear espacio: $e'), backgroundColor: Colors.red),
+                  );
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: primaryDark, foregroundColor: Colors.white),
@@ -144,11 +150,12 @@ class _PresidentPanelScreenState extends State<PresidentPanelScreen> {
 
   void _eliminarRecurso(int recursoId) async {
     final token = Provider.of<UserProvider>(context, listen: false).token;
+    final messenger = ScaffoldMessenger.of(context);
     try {
       await _recursoService.eliminarRecurso(recursoId, token!);
-      _cargarRecursos(token);
+      if (mounted) _cargarRecursos(token);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al eliminar')));
+      messenger.showSnackBar(const SnackBar(content: Text('Error al eliminar')));
     }
   }
 

@@ -180,7 +180,10 @@ class _TablonIncidenciasScreenState extends State<TablonIncidenciasScreen> {
                 ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: null,
-        onPressed: () => context.push('/incidencias/nueva'),
+        onPressed: () async {
+          await context.push('/incidencias/nueva');
+          if (mounted) _cargarIncidencias();
+        },
         icon: const Icon(Icons.add_alert),
         label: const Text("Nueva Incidencia"),
         backgroundColor: Colors.orangeAccent,

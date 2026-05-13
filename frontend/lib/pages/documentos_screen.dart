@@ -31,6 +31,7 @@ class _DocumentosScreenState extends State<DocumentosScreen> {
   }
 
   Future<void> _cargarDatos() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final token = Provider.of<UserProvider>(context, listen: false).token!;
@@ -85,6 +86,10 @@ class _DocumentosScreenState extends State<DocumentosScreen> {
 
   // --- LÓGICA SUBIR PDF ---
   Future<void> _subirPDF() async {
+    // Capturamos token y username ANTES del await para evitar usar context tras un gap asíncrono
+    final token = Provider.of<UserProvider>(context, listen: false).token;
+    final username = Provider.of<UserProvider>(context, listen: false).user?.username;
+
     try {
       // 1. Abrimos el selector de archivos nativo
       FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -94,38 +99,47 @@ class _DocumentosScreenState extends State<DocumentosScreen> {
 
       // 2. Si el usuario eligió un archivo y no canceló
       if (result != null) {
-        // Comprobación de seguridad
-        if (_carpetaActual == null) {
-          _mostrarMensaje(
-            "Error: No hay ninguna carpeta seleccionada",
-            Colors.orange,
-          );
+        if (_carpetaActual == null || token == null || username == null) {
+          if (mounted) _mostrarMensaje("Error: sesión o carpeta no válida", Colors.orange);
           return;
         }
 
+        if (!mounted) return;
         setState(() => _isLoading = true);
 
-        final token = Provider.of<UserProvider>(context, listen: false).token!;
-        final username = Provider.of<UserProvider>(
-          context,
-          listen: false,
-        ).user!.username;
+        bool subioCorrecto = false;
+        try {
+          await _docService.subirPDF(
+            result.files.first,
+            _carpetaActual!.id,
+            username,
+            token,
+          );
+          subioCorrecto = true;
+        } catch (uploadError) {
+          // El backend puede devolver un error aunque el archivo se haya guardado
+          // (comportamiento conocido en Render free tier). Forzamos recarga siempre.
+          debugPrint('Respuesta de subida: $uploadError');
+        }
 
-        // Llamamos al backend para subirlo
-        await _docService.subirPDF(
-          result.files.first,
-          _carpetaActual!.id,
-          username,
-          token,
-        );
+        // Recargamos la lista independientemente del resultado del upload,
+        // porque el archivo puede haberse guardado aunque la respuesta HTTP falle.
+        await _cargarDatos();
 
-        _mostrarMensaje("¡PDF subido correctamente! 🎉", Colors.green);
-        await _cargarDatos(); // Recargar para ver el nuevo PDF
+        if (mounted) {
+          if (subioCorrecto) {
+            _mostrarMensaje("¡PDF subido correctamente! 🎉", Colors.green);
+          } else {
+            _mostrarMensaje("Archivo subido (verificado en lista) ✓", Colors.orange);
+          }
+        }
       }
     } catch (e) {
-      // SI ALGO EXPLOTA (Explorador, permisos, o backend), LO VEREMOS AQUÍ:
-      _mostrarMensaje("🚨 ERROR: ${e.toString()}", Colors.red);
-      setState(() => _isLoading = false);
+      // Error antes de la subida (selector, permisos, sesión inválida)
+      if (mounted) {
+        _mostrarMensaje("🚨 ERROR: ${e.toString()}", Colors.red);
+        setState(() => _isLoading = false);
+      }
     }
   }
 

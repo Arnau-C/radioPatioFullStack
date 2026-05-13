@@ -148,7 +148,10 @@ class _ListaReservasScreenState extends State<ListaReservasScreen> {
             ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: null,
-        onPressed: () => context.push('/reservas/nueva'),
+        onPressed: () async {
+          await context.push('/reservas/nueva');
+          if (mounted) _cargarDatos();
+        },
         icon: const Icon(Icons.add),
         label: const Text("Reservar Zona"),
         backgroundColor: accentColor,

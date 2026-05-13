@@ -39,11 +39,17 @@ class RecursoService {
       }),
     );
 
-    if (response.statusCode == 201) {
+    if (response.statusCode == 200 || response.statusCode == 201) {
       return Recurso.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
-      final errorMap = jsonDecode(utf8.decode(response.bodyBytes));
-      throw Exception(errorMap['error'] ?? "Error al crear recurso");
+      String errorMsg = "Error al crear recurso (${response.statusCode})";
+      try {
+        final errorMap = jsonDecode(utf8.decode(response.bodyBytes));
+        errorMsg = errorMap['error'] ?? errorMap['message'] ?? errorMsg;
+      } catch (_) {
+        // Respuesta no-JSON del servidor
+      }
+      throw Exception(errorMsg);
     }
   }
 

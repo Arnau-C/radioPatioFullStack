@@ -27,4 +27,10 @@ class Recurso {
       'tipoReserva': tipoReserva,
     };
   }
+
+  @override
+  bool operator ==(Object other) => other is Recurso && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
 }
