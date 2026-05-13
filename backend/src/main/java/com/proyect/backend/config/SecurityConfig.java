@@ -14,7 +14,6 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -37,14 +36,12 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                // Rutas de auth con AntPathRequestMatcher explícito para evitar
-                // ambigüedades del MvcRequestMatcher en Spring Security 6.x
-                .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.POST, "/api/auth/registro")).permitAll()
-                .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.POST, "/api/auth/login")).permitAll()
-                .requestMatchers(AntPathRequestMatcher.antMatcher("/api/auth/**")).permitAll()
-                .requestMatchers(AntPathRequestMatcher.antMatcher("/api/comunidades/**")).permitAll()
-                .requestMatchers(AntPathRequestMatcher.antMatcher("/api/foros/**")).permitAll()
-                .requestMatchers(AntPathRequestMatcher.antMatcher("/api/superadmin/**")).hasAuthority("SUPER_ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/auth/registro").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/comunidades/**").permitAll()
+                .requestMatchers("/api/foros/**").permitAll()
+                .requestMatchers("/api/superadmin/**").hasAuthority("SUPER_ADMIN")
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session
