@@ -49,6 +49,11 @@ class ResponsiveScaffold extends StatelessWidget {
       label: 'Incidencias',
     ),
     _NavigationDestination(
+      icon: Icons.how_to_vote_outlined,
+      selectedIcon: Icons.how_to_vote,
+      label: 'Votaciones',
+    ),
+    _NavigationDestination(
       icon: Icons.person_outline,
       selectedIcon: Icons.person,
       label: 'Perfil',

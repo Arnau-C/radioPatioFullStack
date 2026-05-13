@@ -26,6 +26,8 @@ import 'package:frontend/pages/president_panel_screen.dart';
 import 'package:frontend/pages/miembros_comunidad_screen.dart';
 import 'package:frontend/pages/edit_user.dart';
 import 'package:frontend/pages/create_community_page.dart';
+import 'package:frontend/pages/votaciones_screen.dart';
+import 'package:frontend/pages/votacion_detalle_screen.dart';
 
 // --- Providers para obtener datos de contexto ---
 import 'package:frontend/providers/user_provider.dart';
@@ -83,6 +85,8 @@ class AppRouter {
       GlobalKey<NavigatorState>(debugLabel: 'reservas');
   static final GlobalKey<NavigatorState> _incidenciasNavigatorKey =
       GlobalKey<NavigatorState>(debugLabel: 'incidencias');
+  static final GlobalKey<NavigatorState> _votacionesNavigatorKey =
+      GlobalKey<NavigatorState>(debugLabel: 'votaciones');
   static final GlobalKey<NavigatorState> _perfilNavigatorKey =
       GlobalKey<NavigatorState>(debugLabel: 'perfil');
 
@@ -240,6 +244,25 @@ class AppRouter {
         ),
       ),
 
+      /// Detalle de una votación (pantalla completa con polling).
+      GoRoute(
+        path: '/votaciones/:id',
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (context, state) {
+          final votacionId = int.parse(state.pathParameters['id']!);
+          final userProv = Provider.of<UserProvider>(context, listen: false);
+          return buildPageWithDefaultTransition(
+            context: context,
+            state: state,
+            child: VotacionDetalleScreen(
+              votacionId: votacionId,
+              token: userProv.token ?? '',
+              isPresidente: userProv.user?.rol == 'PRESIDENTE',
+            ),
+          );
+        },
+      ),
+
       // =====================================================================
       // SHELL PRINCIPAL — Las 4 tabs con navegación responsiva
       // =====================================================================
@@ -308,7 +331,28 @@ class AppRouter {
             ],
           ),
 
-          // --- Tab 3: Perfil ---
+          // --- Tab 3: Votaciones ---
+          StatefulShellBranch(
+            navigatorKey: _votacionesNavigatorKey,
+            routes: [
+              GoRoute(
+                path: '/votaciones',
+                builder: (context, state) {
+                  final communityProv =
+                      Provider.of<CommunityProvider>(context, listen: false);
+                  final userProv =
+                      Provider.of<UserProvider>(context, listen: false);
+                  return VotacionesScreen(
+                    comunidadId: communityProv.communityId ?? 0,
+                    token: userProv.token ?? '',
+                    isPresidente: userProv.user?.rol == 'PRESIDENTE',
+                  );
+                },
+              ),
+            ],
+          ),
+
+          // --- Tab 4: Perfil ---
           StatefulShellBranch(
             navigatorKey: _perfilNavigatorKey,
             routes: [
