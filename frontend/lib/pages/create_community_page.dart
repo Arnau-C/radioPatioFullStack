@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:frontend/ui/feedback/radio_patio_snackbar.dart';
 import 'package:frontend/providers/community_provider.dart';
 import 'package:frontend/providers/user_provider.dart';
 import 'package:provider/provider.dart';
@@ -98,7 +100,10 @@ class _CreateCommunityPageState extends State<CreateCommunityPage> {
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(ctx); // Cierra el diálogo.
-                Navigator.pop(context, true); // Vuelve a la pantalla anterior.
+                // Cargamos detalles de comunidad y vamos al Home.
+                communityProvider.getCommunityDetails().then((_) {
+                  if (context.mounted) context.go('/home');
+                });
               },
               child: const Text("ENTENDIDO"),
             ),
@@ -106,12 +111,10 @@ class _CreateCommunityPageState extends State<CreateCommunityPage> {
         ),
       );
     } else if (mounted) {
-      // Si hay un error, muestra un mensaje en una SnackBar.
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Error: ${communityProvider.error}"),
-          backgroundColor: Colors.red,
-        ),
+      // Si hay un error, muestra un mensaje con el snackbar del Design System.
+      RadioPatioSnackbar.error(
+        context,
+        "Error: ${communityProvider.error}",
       );
     }
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:frontend/utils/api_client.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -11,11 +12,11 @@ class TablonIncidenciasScreen extends StatefulWidget {
   final bool isPresidenteOrAdmin;
 
   const TablonIncidenciasScreen({
-    Key? key, 
+    super.key, 
     required this.comunidadId,
     required this.tokenJwt,
     required this.isPresidenteOrAdmin,
-  }) : super(key: key);
+  });
 
   @override
   State<TablonIncidenciasScreen> createState() => _TablonIncidenciasScreenState();
@@ -57,7 +58,7 @@ class _TablonIncidenciasScreenState extends State<TablonIncidenciasScreen> {
       }
     } catch (e) {
       setState(() => isLoading = false);
-      print('Error al cargar incidencias: $e');
+      debugPrint('Error al cargar incidencias: $e');
     }
   }
 
@@ -89,7 +90,7 @@ class _TablonIncidenciasScreenState extends State<TablonIncidenciasScreen> {
         );
       }
     } catch (e) {
-      print('Error al resolver: $e');
+      debugPrint('Error al resolver: $e');
     }
   }
 
@@ -126,43 +127,64 @@ class _TablonIncidenciasScreenState extends State<TablonIncidenciasScreen> {
                     // Extraemos los primeros 10 caracteres (YYYY-MM-DD) de LocalDateTime para que quede limpio
                     final fecha = incidencia['fechaCreacion']?.toString().substring(0, 10) ?? 'Fecha no disponible';
 
-                    return Card(
-                      elevation: 3,
-                      margin: const EdgeInsets.symmetric(vertical: 8),
-                      child: ListTile(
-                        leading: const CircleAvatar(
-                          backgroundColor: Colors.orangeAccent,
-                          child: Icon(Icons.priority_high, color: Colors.white),
-                        ),
-                        title: Text(
-                          titulo, 
-                          style: const TextStyle(fontWeight: FontWeight.bold)
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(descripcion, maxLines: 2, overflow: TextOverflow.ellipsis),
-                              const SizedBox(height: 8),
-                              Text('Enviado por: $vecino', style: const TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.w500)),
-                              Text('Fecha: $fecha', style: const TextStyle(color: Colors.blueGrey)),
-                            ],
+                    return TweenAnimationBuilder(
+                      tween: Tween<double>(begin: 0, end: 1),
+                      duration: Duration(milliseconds: 400 + (index * 100)),
+                      curve: Curves.easeOutQuart,
+                      builder: (context, value, child) {
+                        return Transform.translate(
+                          offset: Offset(0, 50 * (1 - value)),
+                          child: Opacity(
+                            opacity: value,
+                            child: child,
                           ),
+                        );
+                      },
+                      child: Card(
+                        elevation: 3,
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        child: ListTile(
+                          leading: const CircleAvatar(
+                            backgroundColor: Colors.orangeAccent,
+                            child: Icon(Icons.priority_high, color: Colors.white),
+                          ),
+                          title: Text(
+                            titulo, 
+                            style: const TextStyle(fontWeight: FontWeight.bold)
+                          ),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(descripcion, maxLines: 2, overflow: TextOverflow.ellipsis),
+                                const SizedBox(height: 8),
+                                Text('Enviado por: $vecino', style: const TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.w500)),
+                                Text('Fecha: $fecha', style: const TextStyle(color: Colors.blueGrey)),
+                              ],
+                            ),
+                          ),
+                          isThreeLine: true,
+                          // El botón para marcar como resuelto
+                          trailing: widget.isPresidenteOrAdmin ? IconButton(
+                            icon: const Icon(Icons.check_circle_outline, color: Colors.green, size: 32),
+                            tooltip: 'Marcar como resuelta',
+                            onPressed: () {
+                              _resolverIncidencia(incidencia['id']);
+                            },
+                          ) : null,
                         ),
-                        isThreeLine: true,
-                        // El botón para marcar como resuelto
-                        trailing: widget.isPresidenteOrAdmin ? IconButton(
-                          icon: const Icon(Icons.check_circle_outline, color: Colors.green, size: 32),
-                          tooltip: 'Marcar como resuelta',
-                          onPressed: () {
-                            _resolverIncidencia(incidencia['id']);
-                          },
-                        ) : null,
                       ),
                     );
                   },
                 ),
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: null,
+        onPressed: () => context.push('/incidencias/nueva'),
+        icon: const Icon(Icons.add_alert),
+        label: const Text("Nueva Incidencia"),
+        backgroundColor: Colors.orangeAccent,
+      ),
     );
   }
 }

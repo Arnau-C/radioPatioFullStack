@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/models/user.dart';
 import 'package:frontend/providers/user_provider.dart';
 import 'package:frontend/services/auth_service.dart';
-import 'package:frontend/utils/validators.dart';
+
 
 /// [AuthProvider]
 ///

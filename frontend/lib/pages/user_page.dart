@@ -1,16 +1,16 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
-import 'package:frontend/pages/create_community_page.dart';
-import 'package:frontend/pages/edit_user.dart';
-import 'package:frontend/pages/home_screen.dart';
-import 'package:frontend/pages/login_page.dart';
+import 'package:frontend/ui/feedback/radio_patio_snackbar.dart';
+
 import 'package:frontend/providers/user_provider.dart';
+import 'package:frontend/providers/community_provider.dart';
 import 'package:frontend/utils/api_client.dart';
-import 'package:flutter/services.dart'; // Para copiar al portapapeles
-import 'package:share_plus/share_plus.dart'; // Para compartir con el menú nativo
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 
 class UserPage extends StatefulWidget {
   const UserPage({super.key});
@@ -68,7 +68,7 @@ class _UserPageState extends State<UserPage> {
         final data = jsonDecode(response.body);
         String nombreComunidad = data['comunidadNombre'];
 
-        // Actualizamos el rol localmente en el provider para que la UI cambie
+        if (!mounted) return;
         final provider = Provider.of<UserProvider>(context, listen: false);
         if (provider.user != null) {
           // Actualización de estado manual para forzar el repintado
@@ -80,22 +80,16 @@ class _UserPageState extends State<UserPage> {
 
         if (mounted) {
           Navigator.pop(context); // Cierra el diálogo
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                "¡Bienvenido! Ahora eres parte de $nombreComunidad 🎉",
-              ),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-            ),
+          RadioPatioSnackbar.success(
+            context,
+            "¡Bienvenido! Ahora eres parte de $nombreComunidad 🎉",
           );
           
-          // Entramos en la comunidad recién unida: Redirigimos a la vista completa del calendario
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
-            (Route<dynamic> route) => false,
-          );
+          // Cargamos detalles de comunidad y vamos al Home.
+          final communityProv =
+              Provider.of<CommunityProvider>(context, listen: false);
+          await communityProv.getCommunityDetails();
+          if (mounted) context.go('/home');
         }
       } else {
         final errorData = jsonDecode(response.body);
@@ -103,20 +97,13 @@ class _UserPageState extends State<UserPage> {
 
         if (mounted) {
           Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
-          );
+          RadioPatioSnackbar.error(context, errorMsg);
         }
       }
     } catch (e) {
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error de conexión: $e"),
-            backgroundColor: Colors.red,
-          ),
-        );
+        RadioPatioSnackbar.error(context, "Error de conexión: $e");
       }
     }
   }
@@ -130,35 +117,26 @@ class _UserPageState extends State<UserPage> {
 
       if (response.statusCode == 200) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Cuenta eliminada correctamente. Hasta pronto."),
-              backgroundColor: Colors.grey,
-              duration: Duration(seconds: 2),
-            ),
+          RadioPatioSnackbar.info(
+            context,
+            "Cuenta eliminada correctamente. Hasta pronto.",
           );
 
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => const LoginPage()),
-            (Route<dynamic> route) => false,
-          );
+          context.go('/login');
         }
       } else {
         throw Exception("Error al borrar: ${response.statusCode}");
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
-        );
+        RadioPatioSnackbar.error(context, "Error: $e");
       }
     }
   }
 
   // --- DIÁLOGOS ---
   void mostrarDialogoUnirse(String username) {
-    final TextEditingController _codigoController = TextEditingController();
+    final TextEditingController codigoController = TextEditingController();
 
     showDialog(
       context: context,
@@ -172,7 +150,7 @@ class _UserPageState extends State<UserPage> {
             ),
             const SizedBox(height: 15),
             TextField(
-              controller: _codigoController,
+              controller: codigoController,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 labelText: "Código de Invitación",
@@ -189,8 +167,8 @@ class _UserPageState extends State<UserPage> {
           ),
           ElevatedButton(
             onPressed: () {
-              if (_codigoController.text.isNotEmpty) {
-                unirseComunidad(_codigoController.text.trim(), username);
+              if (codigoController.text.isNotEmpty) {
+                unirseComunidad(codigoController.text.trim(), username);
               }
             },
             style: ElevatedButton.styleFrom(
@@ -247,12 +225,15 @@ class _UserPageState extends State<UserPage> {
           child: FutureBuilder<List<dynamic>>(
             future: fetchUsers(),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting)
+              if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
-              if (snapshot.hasError)
+              }
+              if (snapshot.hasError) {
                 return Center(child: Text("Error: ${snapshot.error}"));
-              if (!snapshot.hasData || snapshot.data!.isEmpty)
+              }
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return const Center(child: Text("No hay usuarios"));
+              }
 
               final users = snapshot.data!;
               return ListView.separated(
@@ -325,8 +306,9 @@ class _UserPageState extends State<UserPage> {
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<UserProvider>(context).user;
-    if (user == null)
+    if (user == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     bool isAdmin = (user.rol == 'ADMIN' || user.rol == 'SUPER_ADMIN');
 
@@ -343,11 +325,7 @@ class _UserPageState extends State<UserPage> {
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.redAccent),
             onPressed: () {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginPage()),
-                (route) => false,
-              );
+              context.go('/login');
             },
           ),
         ],
@@ -459,22 +437,7 @@ class _UserPageState extends State<UserPage> {
                           label: "Crear\nComunidad",
                           color: Colors.deepPurple,
                           onTap: () async {
-                            final resultado = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => CreateCommunityPage(
-                                  username: user.username,
-                                ),
-                              ),
-                            );
-                            if (resultado == true) {
-                              // Redirige directamente al panel del calendario
-                              Navigator.pushAndRemoveUntil(
-                                context,
-                                MaterialPageRoute(builder: (context) => const HomeScreen()),
-                                (Route<dynamic> route) => false,
-                              );
-                            }
+                            context.push('/comunidad/crear');
                           },
                         ),
                       ),
@@ -542,12 +505,12 @@ class _UserPageState extends State<UserPage> {
                   borderRadius: BorderRadius.circular(25),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.teal.withOpacity(0.2),
+                      color: Colors.teal.withValues(alpha: 0.2),
                       blurRadius: 15,
                       offset: const Offset(0, 8),
                     ),
                   ],
-                  border: Border.all(color: Colors.teal.withOpacity(0.3), width: 1.5),
+                  border: Border.all(color: Colors.teal.withValues(alpha: 0.3), width: 1.5),
                 ),
                 child: Column(
                   children: [
@@ -584,7 +547,7 @@ class _UserPageState extends State<UserPage> {
                         borderRadius: BorderRadius.circular(15),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
+                            color: Colors.black.withValues(alpha: 0.05),
                             blurRadius: 5,
                             offset: const Offset(0, 3),
                           )
@@ -620,7 +583,7 @@ class _UserPageState extends State<UserPage> {
                             child: Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: Colors.teal.withOpacity(0.1),
+                                color: Colors.teal.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Icon(
@@ -641,6 +604,7 @@ class _UserPageState extends State<UserPage> {
                         onPressed: () {
                           // Mensaje formateado para WhatsApp u otras apps
                           final String mensaje = "¡Hola vecino! 👋\n\nÚnete a nuestra comunidad en la app de vecinos.\n\nDescarga la app e introduce el código de invitación: *${codigoInvitacionActual!}* 🏢";
+                          // ignore: deprecated_member_use
                           Share.share(mensaje);
                         },
                         icon: const Icon(Icons.share_rounded),
@@ -652,7 +616,7 @@ class _UserPageState extends State<UserPage> {
                           backgroundColor: Colors.teal,
                           foregroundColor: Colors.white,
                           elevation: 4,
-                          shadowColor: Colors.teal.withOpacity(0.5),
+                          shadowColor: Colors.teal.withValues(alpha: 0.5),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
                           ),
@@ -666,14 +630,93 @@ class _UserPageState extends State<UserPage> {
               const SizedBox(height: 10),
             ],
           ],
+          
+          // --- SECCIÓN: GESTIÓN DE LA COMUNIDAD (Solo si es miembro) ---
+          if (user.rol != 'USER') ...[
+            const SizedBox(height: 30),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(left: 20, top: 20, bottom: 10),
+                    child: Text(
+                      "Gestión de la Comunidad",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.teal,
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.folder_shared, color: Colors.orange),
+                    ),
+                    title: const Text("Documentos y Archivos", style: TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: const Text("Estatutos, actas, normativas...", style: TextStyle(fontSize: 12)),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push('/documentos'),
+                  ),
+                  const Divider(height: 1, indent: 60),
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.people, color: Colors.blue),
+                    ),
+                    title: const Text("Directorio de Vecinos", style: TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: const Text("Lista de miembros de la comunidad", style: TextStyle(fontSize: 12)),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push('/comunidad/miembros'),
+                  ),
+                  if (user.rol == 'PRESIDENTE' || user.rol == 'SUPER_ADMIN') ...[
+                    const Divider(height: 1, indent: 60),
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.admin_panel_settings, color: Colors.purple),
+                      ),
+                      title: const Text("Panel del Presidente", style: TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: const Text("Gestión de espacios y zonas comunes", style: TextStyle(fontSize: 12)),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/presidente'),
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                ],
+              ),
+            ),
+          ],
 
           const SizedBox(height: 30),
 
           ElevatedButton.icon(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const EditUser()),
-            ),
+            onPressed: () => context.push('/perfil/editar'),
             icon: const Icon(Icons.edit),
             label: const Text("EDITAR MIS DATOS"),
             style: ElevatedButton.styleFrom(
@@ -736,9 +779,9 @@ class _UserPageState extends State<UserPage> {
       child: Container(
         height: 100,
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

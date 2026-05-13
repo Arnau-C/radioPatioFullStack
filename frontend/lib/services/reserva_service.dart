@@ -65,8 +65,9 @@ class ReservaService {
         );
       }
     } catch (e) {
-      if (e is ReservaException)
+      if (e is ReservaException) {
         rethrow;
+      }
       throw ReservaException(
         "No se pudo conectar con el servidor.",
       );

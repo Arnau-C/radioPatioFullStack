@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/models/user.dart';
+
 import 'package:frontend/providers/user_provider.dart';
 import 'package:frontend/services/community_service.dart';
 
@@ -23,6 +23,9 @@ class CommunityProvider with ChangeNotifier {
 
   // Nombre de la comunidad a la que pertenece el usuario.
   String? communityName;
+
+  // ID numérico de la comunidad (necesario para las APIs de reservas, incidencias, etc.).
+  int? communityId;
 
   // Código de invitación de la comunidad (si el usuario es presidente/admin).
   String? invitationCode;
@@ -54,6 +57,7 @@ class CommunityProvider with ChangeNotifier {
   /// [getCommunityDetails]
   ///
   /// Obtiene los detalles de la comunidad a la que pertenece el usuario.
+  /// Almacena el ID, nombre y código de invitación para uso de toda la app.
   Future<void> getCommunityDetails() async {
     // Guarda: Si no hay un usuario en sesión, no se puede continuar.
     final username = _userProvider.user?.username;
@@ -69,6 +73,7 @@ class CommunityProvider with ChangeNotifier {
       final data = await _communityService.getCommunityDetails(username);
       // Actualiza el estado con los datos recibidos.
       communityName = data['nombre'];
+      communityId = data['id'] ?? data['comunidadId'];
       invitationCode = data['codigoInvitacion'];
     } catch (e) {
       // En caso de error, guarda el mensaje.

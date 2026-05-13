@@ -94,7 +94,7 @@ class _PresidentPanelScreenState extends State<PresidentPanelScreen> {
                 ),
                 const SizedBox(height: 15),
                 DropdownButtonFormField<String>(
-                  value: tipoReserva,
+                  initialValue: tipoReserva,
                   decoration: const InputDecoration(labelText: 'Modo de reserva'),
                   items: const [
                     DropdownMenuItem(value: 'POR_HORAS', child: Text('Por bloques de horas')),
@@ -197,6 +197,7 @@ class _PresidentPanelScreenState extends State<PresidentPanelScreen> {
               ),
             ),
       floatingActionButton: FloatingActionButton(
+        heroTag: null,
         onPressed: _comunidadId == null ? null : _mostrarDialogoNuevoRecurso,
         backgroundColor: primaryDark,
         child: const Icon(Icons.add, color: Colors.white),

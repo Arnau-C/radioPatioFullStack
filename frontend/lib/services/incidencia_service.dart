@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../utils/api_client.dart';
-import '../models/incidencia.dart';
+import 'package:flutter/foundation.dart';
 
 class IncidenciaService {
   // OJO: Esta URL dependerá de cómo hagas el Controller en Java
@@ -26,11 +26,11 @@ class IncidenciaService {
       if (response.statusCode == 201 || response.statusCode == 200) {
         return true; // Creada con éxito
       } else {
-        print('Error al crear: ${response.body}');
+        debugPrint('Error al crear: ${response.body}');
         return false;
       }
     } catch (e) {
-      print('Error de red: $e');
+      debugPrint('Error de red: $e');
       return false;
     }
   }

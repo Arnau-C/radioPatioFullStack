@@ -1,97 +1,93 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:frontend/models/reserva.dart';
-import 'package:frontend/pages/create_incidence.dart';
-import 'package:frontend/pages/miembros_comunidad_screen.dart';
-import 'package:frontend/pages/tablon_incidencias_screen.dart';
-import 'package:frontend/services/reserva_service.dart';
-import 'package:frontend/utils/api_client.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
-import 'package:frontend/models/aviso.dart';
-import 'package:frontend/pages/login_page.dart';
-import 'package:frontend/pages/user_page.dart';
-import 'package:frontend/providers/user_provider.dart';
-import 'package:frontend/services/aviso_service.dart';
-import 'package:frontend/pages/documentos_screen.dart';
-import 'package:frontend/pages/lista_reservas_screen.dart';
-import 'package:frontend/pages/president_panel_screen.dart';
-import 'package:frontend/pages/reserva_espacios_screen.dart';
+import 'package:frontend/core/theme/app_colors.dart';
+import 'package:frontend/core/theme/app_typography.dart';
+import 'package:frontend/ui/feedback/radio_patio_snackbar.dart';
+import 'package:frontend/ui/shared/state_widgets.dart';
 
-class HomeScreen
-    extends StatefulWidget {
+import 'package:frontend/models/aviso.dart';
+import 'package:frontend/providers/user_provider.dart';
+import 'package:frontend/providers/community_provider.dart';
+import 'package:frontend/services/aviso_service.dart';
+import 'package:frontend/utils/api_client.dart';
+
+/// [HomeScreen]
+///
+/// Pantalla principal de RadioPatio — muestra el calendario de avisos diarios.
+///
+/// Tras la refactorización, esta pantalla se centra SOLO en su función principal:
+/// - Navegación de fechas (día anterior / siguiente).
+/// - Listado de avisos del día seleccionado.
+/// - FAB simplificado para crear avisos (solo Presidente/Admin).
+///
+/// Las funciones que antes estaban aquí (Drawer, PopupMenu, FAB con reservas/incidencias)
+/// se han migrado a las tabs del [ResponsiveScaffold] (Reservas, Incidencias, Perfil).
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() =>
-      _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState
-    extends State<HomeScreen> {
-  DateTime _fechaSeleccionada =
-      DateTime.now(); // El día que estamos visualizando
-  String _fechaHeaderFormatted = "";
-  bool _isFabMenuOpen = false;
-  final AvisoService _avisoService =
-      AvisoService(); // Instancia del servicio
+class _HomeScreenState extends State<HomeScreen> {
+  // --- ESTADO DE LA PANTALLA ---
 
-  int? _comunidadIdActual;
+  /// Día que estamos visualizando en el calendario de avisos.
+  DateTime _fechaSeleccionada = DateTime.now();
+
+  /// Texto formateado para el header de la fecha (ej: "Lunes, 12 mayo").
+  String _fechaHeaderFormatted = "";
+
+  /// Servicio para obtener y crear avisos desde la API.
+  final AvisoService _avisoService = AvisoService();
+
+  /// Número de incidencias pendientes (para el badge de la AppBar).
   int _numeroIncidencias = 0;
 
-  // --- COLORES DEL NUEVO TEMA ---
-  final Color primaryDark = const Color(
-    0xFF1A365D,
-  ); // Azul marino profundo
-  final Color primaryLight =
-      const Color(
-        0xFFE2E8F0,
-      ); // Gris azulado claro
-  final Color accentColor = const Color(
-    0xFFE27D60,
-  ); // Naranja/Teja (para contrastar)
-
+  /// [initState]
+  ///
+  /// Inicializa el formato de fecha en español y carga datos iniciales.
   @override
   void initState() {
     super.initState();
-    initializeDateFormatting(
-      'es_ES',
-      null,
-    ).then((_) {
+    // Inicializar el formato de fechas en español para DateFormat.
+    initializeDateFormatting('es_ES', null).then((_) {
       _updateFechaHeader();
     });
 
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) {
-          final userProvider =
-              Provider.of<UserProvider>(
-                context,
-                listen: false,
-              );
-          final user =
-              userProvider.user;
-          final token =
-              userProvider.token;
-
-          if (user != null &&
-              user.rol != 'USER' &&
-              token != null) {
-            _obtenerComunidadId(
-              user.username,
-              token,
-            );
-          }
-        });
+    // Cargar el número de incidencias tras el primer frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _cargarIncidenciasIniciales();
+    });
   }
 
-  Future<void> _cargarNumeroIncidencias(
-    String token,
-    int comunidadId,
-  ) async {
+  /// Carga el número de incidencias si tenemos comunidadId disponible.
+  void _cargarIncidenciasIniciales() {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final communityProvider =
+        Provider.of<CommunityProvider>(context, listen: false);
+    final user = userProvider.user;
+    final token = userProvider.token;
+    final comunidadId = communityProvider.communityId;
+
+    if (user != null && user.rol != 'USER' && token != null && comunidadId != null) {
+      _cargarNumeroIncidencias(token, comunidadId);
+    }
+  }
+
+  // =========================================================================
+  // LÓGICA DE DATOS — Comunicación con la API
+  // =========================================================================
+
+  /// Carga el número total de incidencias de la comunidad para el badge.
+  Future<void> _cargarNumeroIncidencias(String token, int comunidadId) async {
     final url = Uri.parse(
       '${ApiClient.baseUrl}/comunidades/$comunidadId/incidencias',
     );
@@ -99,313 +95,159 @@ class _HomeScreenState
       final response = await http.get(
         url,
         headers: {
-          'Authorization':
-              'Bearer $token',
-          'Content-Type':
-              'application/json',
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
         },
       );
       if (response.statusCode == 200) {
-        final List<dynamic> data =
-            jsonDecode(
-              utf8.decode(
-                response.bodyBytes,
-              ),
-            );
+        final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
         if (mounted) {
           setState(() {
-            _numeroIncidencias =
-                data.length;
+            _numeroIncidencias = data.length;
           });
         }
       }
     } catch (e) {
-      debugPrint(
-        'Error al cargar incidencias: $e',
-      );
+      debugPrint('Error al cargar incidencias: $e');
     }
   }
 
-  Future<void> _obtenerComunidadId(
-    String username,
-    String token,
-  ) async {
-    final url = Uri.parse(
-      '${ApiClient.baseUrl}/comunidades/detalle/$username',
-    );
-    try {
-      final response = await http.get(
-        url,
-        headers: {
-          'Authorization':
-              'Bearer $token',
-          'Content-Type':
-              'application/json',
-        },
-      );
+  // =========================================================================
+  // LÓGICA DE NAVEGACIÓN DE FECHAS
+  // =========================================================================
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(
-          response.body,
-        );
-
-        if (mounted) {
-          setState(() {
-            _comunidadIdActual =
-                data['id'] ??
-                data['idComunidad'] ??
-                data['comunidadId'];
-          });
-        }
-      } else {
-        debugPrint(
-          'Error al obtener datos de comunidad: ${response.statusCode}',
-        );
-      }
-    } catch (e) {
-      debugPrint(
-        'Fallo de conexión en _obtenerComunidadId: $e',
-      );
-    }
-  }
-
+  /// Actualiza el texto formateado del header de fecha.
   void _updateFechaHeader() {
     if (mounted) {
       setState(() {
-        String diaSemana = DateFormat(
-          'EEEE',
-          'es_ES',
-        ).format(_fechaSeleccionada);
-        String diaMes = DateFormat(
-          'd MMMM',
-          'es_ES',
-        ).format(_fechaSeleccionada);
+        String diaSemana = DateFormat('EEEE', 'es_ES').format(_fechaSeleccionada);
+        String diaMes = DateFormat('d MMMM', 'es_ES').format(_fechaSeleccionada);
         _fechaHeaderFormatted =
             "${diaSemana[0].toUpperCase()}${diaSemana.substring(1)}, $diaMes";
       });
     }
   }
 
+  /// Avanza al día siguiente.
   void _irAlDiaSiguiente() {
     setState(() {
-      _fechaSeleccionada =
-          _fechaSeleccionada.add(
-            const Duration(days: 1),
-          );
+      _fechaSeleccionada = _fechaSeleccionada.add(const Duration(days: 1));
       _updateFechaHeader();
-      _isFabMenuOpen = false;
     });
   }
 
+  /// Retrocede al día anterior.
   void _irAlDiaAnterior() {
     setState(() {
-      _fechaSeleccionada =
-          _fechaSeleccionada.subtract(
-            const Duration(days: 1),
-          );
+      _fechaSeleccionada = _fechaSeleccionada.subtract(const Duration(days: 1));
       _updateFechaHeader();
-      _isFabMenuOpen = false;
     });
   }
 
+  /// Comprueba si la fecha seleccionada es hoy.
   bool _esHoy() {
     final now = DateTime.now();
-    return _fechaSeleccionada.year ==
-            now.year &&
-        _fechaSeleccionada.month ==
-            now.month &&
-        _fechaSeleccionada.day ==
-            now.day;
+    return _fechaSeleccionada.year == now.year &&
+        _fechaSeleccionada.month == now.month &&
+        _fechaSeleccionada.day == now.day;
   }
 
-  void _mostrarFormularioCrearAviso(
-    String username,
-    String token,
-  ) {
-    final TextEditingController
-    _tituloController =
-        TextEditingController();
-    final TextEditingController
-    _descripcionController =
-        TextEditingController();
-    DateTime _fechaAvisoNuevo =
-        DateTime.now();
+  // =========================================================================
+  // FORMULARIO DE CREAR AVISO — Solo para Presidente/Admin
+  // =========================================================================
+
+  /// Muestra un diálogo para crear un nuevo aviso comunitario.
+  void _mostrarFormularioCrearAviso(String username, String token) {
+    final tituloController = TextEditingController();
+    final descripcionController = TextEditingController();
+    DateTime fechaAvisoNuevo = DateTime.now();
 
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(
-                  20,
-                ),
+            borderRadius: BorderRadius.circular(20),
           ),
           title: Row(
             children: [
-              Icon(
-                Icons.campaign,
-                color: accentColor,
-              ),
+              Icon(Icons.campaign, color: AppColors.accent),
               const SizedBox(width: 10),
-              const Text(
-                "Crear Nuevo Aviso",
-              ),
+              const Text("Crear Nuevo Aviso"),
             ],
           ),
           content: SingleChildScrollView(
             child: Column(
-              mainAxisSize:
-                  MainAxisSize.min,
-              crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Campo: título del aviso.
                 TextField(
-                  controller:
-                      _tituloController,
+                  controller: tituloController,
                   decoration: const InputDecoration(
-                    labelText:
-                        "Título del Aviso",
-                    hintText:
-                        "Ej: Corte de agua",
-                    border:
-                        OutlineInputBorder(),
+                    labelText: "Título del Aviso",
+                    hintText: "Ej: Corte de agua",
+                    border: OutlineInputBorder(),
                   ),
                   maxLength: 50,
                 ),
-                const SizedBox(
-                  height: 15,
-                ),
+                const SizedBox(height: 15),
+                // Campo: descripción/contexto del aviso.
                 TextField(
-                  controller:
-                      _descripcionController,
+                  controller: descripcionController,
                   decoration: const InputDecoration(
-                    labelText:
-                        "Contexto / Descripción",
-                    hintText:
-                        "Detalla el aviso aquí...",
-                    border:
-                        OutlineInputBorder(),
-                    alignLabelWithHint:
-                        true,
+                    labelText: "Contexto / Descripción",
+                    hintText: "Detalla el aviso aquí...",
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
                   ),
                   maxLines: 4,
-                  keyboardType:
-                      TextInputType
-                          .multiline,
+                  keyboardType: TextInputType.multiline,
                 ),
-                const SizedBox(
-                  height: 20,
-                ),
+                const SizedBox(height: 20),
+                // Selector de fecha del aviso.
                 const Text(
                   "Fecha del Aviso:",
                   style: TextStyle(
-                    fontWeight:
-                        FontWeight.bold,
-                    color: Colors.grey,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textSecondary,
                   ),
                 ),
-                const SizedBox(
-                  height: 8,
-                ),
+                const SizedBox(height: 8),
                 InkWell(
                   onTap: () async {
-                    final DateTime?
-                    picked = await showDatePicker(
-                      context: context,
-                      initialDate:
-                          _fechaAvisoNuevo,
-                      firstDate:
-                          DateTime.now()
-                              .subtract(
-                                const Duration(
-                                  days:
-                                      365,
-                                ),
-                              ),
-                      lastDate:
-                          DateTime.now().add(
-                            const Duration(
-                              days: 365,
-                            ),
-                          ),
-                      locale:
-                          const Locale(
-                            'es',
-                            'ES',
-                          ),
-                      builder: (context, child) {
-                        return Theme(
-                          data: Theme.of(context).copyWith(
-                            colorScheme: ColorScheme.light(
-                              primary:
-                                  primaryDark,
-                              onPrimary:
-                                  Colors
-                                      .white,
-                              onSurface:
-                                  Colors
-                                      .black,
-                            ),
-                          ),
-                          child: child!,
-                        );
-                      },
+                    final DateTime? picked = await showDatePicker(
+                      context: dialogContext,
+                      initialDate: fechaAvisoNuevo,
+                      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                      locale: const Locale('es', 'ES'),
                     );
-                    if (picked !=
-                            null &&
-                        picked !=
-                            _fechaAvisoNuevo) {
+                    if (picked != null && picked != fechaAvisoNuevo) {
                       setDialogState(() {
-                        _fechaAvisoNuevo =
-                            picked;
+                        fechaAvisoNuevo = picked;
                       });
                     }
                   },
                   child: Container(
-                    padding:
-                        const EdgeInsets.all(
-                          12,
-                        ),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      border: Border.all(
-                        color: Colors
-                            .grey
-                            .shade400,
-                      ),
-                      borderRadius:
-                          BorderRadius.circular(
-                            8,
-                          ),
-                      color: Colors
-                          .grey
-                          .shade100,
+                      border: Border.all(color: Colors.grey.shade400),
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.grey.shade100,
                     ),
                     child: Row(
-                      mainAxisAlignment:
-                          MainAxisAlignment
-                              .spaceBetween,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          DateFormat(
-                            'dd / MM / yyyy',
-                            'es_ES',
-                          ).format(
-                            _fechaAvisoNuevo,
-                          ),
-                          style:
-                              const TextStyle(
-                                fontSize:
-                                    16,
-                              ),
+                          DateFormat('dd / MM / yyyy', 'es_ES')
+                              .format(fechaAvisoNuevo),
+                          style: const TextStyle(fontSize: 16),
                         ),
-                        Icon(
-                          Icons
-                              .calendar_today,
-                          color:
-                              primaryDark,
+                        const Icon(
+                          Icons.calendar_today,
+                          color: AppColors.primaryDark,
                         ),
                       ],
                     ),
@@ -416,99 +258,52 @@ class _HomeScreenState
           ),
           actions: [
             TextButton(
-              onPressed: () =>
-                  Navigator.pop(
-                    context,
-                  ),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text(
                 "Cancelar",
-                style: TextStyle(
-                  color: Colors.grey,
-                ),
+                style: TextStyle(color: AppColors.textSecondary),
               ),
             ),
             ElevatedButton(
               onPressed: () async {
-                if (_tituloController
-                        .text
-                        .isEmpty ||
-                    _descripcionController
-                        .text
-                        .isEmpty) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(
-                    SnackBar(
-                      content: const Text(
-                        "Por favor, rellena todos los campos.",
-                      ),
-                      backgroundColor:
-                          accentColor,
-                    ),
+                if (tituloController.text.isEmpty ||
+                    descripcionController.text.isEmpty) {
+                  RadioPatioSnackbar.warning(
+                    dialogContext,
+                    "Por favor, rellena todos los campos.",
                   );
                   return;
                 }
 
                 try {
-                  await _avisoService
-                      .crearAviso(
-                        _tituloController
-                            .text
-                            .trim(),
-                        _descripcionController
-                            .text
-                            .trim(),
-                        _fechaAvisoNuevo,
-                        username,
-                        token,
-                      );
+                  await _avisoService.crearAviso(
+                    tituloController.text.trim(),
+                    descripcionController.text.trim(),
+                    fechaAvisoNuevo,
+                    username,
+                    token,
+                  );
 
                   if (mounted) {
-                    Navigator.pop(
+                    Navigator.pop(dialogContext);
+                    RadioPatioSnackbar.success(
                       context,
+                      "¡Aviso creado correctamente! 🎉",
                     );
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          "¡Aviso creado correctamente! 🎉",
-                        ),
-                        backgroundColor:
-                            Colors
-                                .green,
-                      ),
-                    );
-                    if (DateUtils.isSameDay(
-                      _fechaAvisoNuevo,
-                      _fechaSeleccionada,
-                    )) {
+                    // Si el aviso es para el día que estamos viendo, refrescamos.
+                    if (DateUtils.isSameDay(fechaAvisoNuevo, _fechaSeleccionada)) {
                       setState(() {});
                     }
                   }
                 } catch (e) {
                   if (mounted) {
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          "Error al crear aviso: $e",
-                        ),
-                        backgroundColor:
-                            Colors.red,
-                      ),
+                    RadioPatioSnackbar.error(
+                      dialogContext,
+                      "Error al crear aviso: $e",
                     );
                   }
                 }
               },
-              style:
-                  ElevatedButton.styleFrom(
-                    backgroundColor:
-                        primaryDark,
-                    foregroundColor:
-                        Colors.white,
-                  ),
               child: const Text("CREAR AVISO"),
             ),
           ],
@@ -516,1051 +311,293 @@ class _HomeScreenState
       ),
     );
   }
+
+  // =========================================================================
+  // BUILD — Interfaz de usuario
+  // =========================================================================
+
   @override
   Widget build(BuildContext context) {
-    final user =
-        Provider.of<UserProvider>(
-          context,
-        ).user;
-    final token =
-        Provider.of<UserProvider>(
-          context,
-        ).token;
+    final user = Provider.of<UserProvider>(context).user;
+    final token = Provider.of<UserProvider>(context).token;
 
-    if (user == null || token == null)
+    // Guard: Si no hay usuario logueado, mostramos un loader.
+    if (user == null || token == null) {
       return const Scaffold(
-        body: Center(
-          child:
-              CircularProgressIndicator(),
-        ),
+        body: Center(child: CircularProgressIndicator()),
       );
+    }
 
-    bool isVecinoMember =
-        (user.rol != 'USER');
-    bool isPresident =
-        (user.rol == 'PRESIDENTE');
-    bool isAdmin =
-        (user.rol == 'ADMIN' ||
-        user.rol == 'SUPER_ADMIN');
+    // Determinamos los permisos del usuario actual.
+    final bool isPresident = user.rol == 'PRESIDENTE';
+    final bool isAdmin = user.rol == 'ADMIN' || user.rol == 'SUPER_ADMIN';
+    final bool canCreateAvisos = isPresident || isAdmin;
 
     return Scaffold(
-      backgroundColor: const Color(
-        0xFFF8F9FA,
-      ),
-
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: primaryDark,
-              ),
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
-                mainAxisAlignment:
-                    MainAxisAlignment
-                        .end,
-                children: [
-                  CircleAvatar(
-                    backgroundColor:
-                        Colors.white,
-                    radius: 30,
-                    child: Icon(
-                      Icons.person,
-                      size: 35,
-                      color:
-                          primaryDark,
-                    ),
-                  ),
-                  const SizedBox(
-                    height: 10,
-                  ),
-                  Text(
-                    '@${user.username}',
-                    style:
-                        const TextStyle(
-                          color: Colors
-                              .white,
-                          fontSize: 18,
-                          fontWeight:
-                              FontWeight
-                                  .bold,
-                        ),
-                  ),
-                  Text(
-                    user.rol ==
-                            'PRESIDENTE'
-                        ? 'Presidente'
-                        : 'Vecino',
-                    style: TextStyle(
-                      color: Colors
-                          .white
-                          .withOpacity(
-                            0.8,
-                          ),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-              ListTile(
-                leading: Icon(
-                  Icons.folder_shared,
-                  color: primaryDark,
-                ),
-                title: const Text(
-                  'Administración (Documentos)',
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const DocumentosScreen(),
-                    ),
-                  );
-                },
-              ),
-            if (isPresident)
-              ListTile(
-                leading: Icon(
-                  Icons.admin_panel_settings,
-                  color: primaryDark,
-                ),
-                title: const Text(
-                  'Panel de Presidente (Recursos)',
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const PresidentPanelScreen(),
-                    ),
-                  );
-                },
-              ),
-          ],
-        ),
-      ),
-
-      // --- APPBAR CON TU LOGO Y NUEVO COLOR ---
+      // --- APPBAR SIMPLIFICADA ---
+      // Ya no tiene Drawer ni PopupMenu. Solo el logo y el badge de incidencias.
       appBar: AppBar(
-        backgroundColor: primaryLight,
-
-        // 👇 Quitamos la sombra difuminada y ponemos tu rayita negra
-        elevation: 0,
-        shape: const Border(
-          bottom: BorderSide(
-            color: Colors
-                .black, // Color de la raya
-            width:
-                1.0, // Grosor (pon 2.0 si la quieres más gorda)
-          ),
-        ),
-
-        iconTheme: IconThemeData(
-          color: primaryDark,
-        ), // Menú oscuro para que se vea en el blanco
-
-        titleSpacing: 0,
+        // Eliminamos el leading automático (hamburguesa del Drawer).
+        automaticallyImplyLeading: false,
+        titleSpacing: 16,
         title: SizedBox(
           height: 72,
           child: Image.asset(
             'lib/images/logo.png',
             fit: BoxFit.contain,
-            alignment:
-                Alignment.centerLeft,
+            alignment: Alignment.centerLeft,
           ),
         ),
-
         actions: [
-          if (_comunidadIdActual !=
-              null)
-            Padding(
-              padding:
-                  const EdgeInsets.only(
-                    right: 5.0,
-                  ),
-              child: IconButton(
-                icon: Stack(
-                  clipBehavior:
-                      Clip.none,
-                  children: [
-                    // Tu icono original (!)
-                    const Icon(
-                      Icons
-                          .priority_high,
-                      color:
-                          Colors.orange,
-                      size: 28,
-                    ),
-                    if (_numeroIncidencias >
-                        0)
-                      Positioned(
-                        right: -2,
-                        top: -4,
-                        child: Container(
-                          padding:
-                              const EdgeInsets.all(
-                                4,
-                              ),
-                          decoration: const BoxDecoration(
-                            color: Colors
-                                .redAccent,
-                            shape: BoxShape
-                                .circle,
-                          ),
-                          child: Text(
-                            '$_numeroIncidencias',
-                            style: const TextStyle(
-                              color: Colors
-                                  .white,
-                              fontSize:
-                                  10,
-                              fontWeight:
-                                  FontWeight
-                                      .bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          TablonIncidenciasScreen(
-                            comunidadId:
-                                _comunidadIdActual!,
-                            tokenJwt:
-                                token,
-                            isPresidenteOrAdmin:
-                                isPresident ||
-                                isAdmin,
-                          ),
-                    ),
-                  ).then((_) {
-                    _cargarNumeroIncidencias(
-                      token,
-                      _comunidadIdActual!,
-                    );
-                  });
-                },
-              ),
-            ),
-          Padding(
-            padding:
-                const EdgeInsets.only(
-                  right: 10.0,
-                ),
-            child: PopupMenuButton<String>(
-              icon: CircleAvatar(
-                backgroundColor:
-                    primaryDark
-                        .withOpacity(
-                          0.1,
-                        ),
-                child: Icon(
-                  Icons.person,
-                  color: primaryDark,
-                ),
-              ),
-              onSelected: (value) =>
-                  _manejarOpcionesPerfil(
-                    value,
-                  ),
-              itemBuilder: (BuildContext context) {
-                List<
-                  PopupMenuEntry<String>
-                >
-                menuItems = [
-                  PopupMenuItem<String>(
-                    value: 'perfil',
-                    child: ListTile(
-                      leading: Icon(
-                        Icons
-                            .account_circle,
-                        color:
-                            primaryDark,
-                      ),
-                      title: const Text(
-                        "Mi Perfil",
-                      ),
-                    ),
-                  ),
-                  const PopupMenuDivider(),
-                  PopupMenuItem<String>(
-                    value: 'comunidad',
-                    child: ListTile(
-                      leading: Icon(
-                        Icons.people,
-                        color:
-                            primaryDark,
-                      ),
-                      title: const Text(
-                        "Ver Comunidad",
-                      ),
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'reservas',
-                    child: ListTile(
-                      leading: Icon(
-                        Icons.history,
-                        color:
-                            accentColor,
-                      ),
-                      title: const Text(
-                        "Todas las Reservas",
-                      ),
-                    ),
-                  ),
-                  const PopupMenuItem<
-                    String
-                  >(
-                    value: 'logout',
-                    child: ListTile(
-                      leading:
-                          const Icon(
-                            Icons
-                                .logout,
-                            color: Colors
-                                .red,
-                          ),
-                      title: const Text(
-                        "Cerrar Sesión",
-                      ),
-                    ),
-                  ),
-                ];
-                return menuItems;
-              },
-            ),
-          ),
+          // Badge de incidencias pendientes.
+          _buildIncidenciasBadge(token),
+          const SizedBox(width: 8),
         ],
       ),
 
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            padding:
-                const EdgeInsets.all(
-                  20.0,
-                ),
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment
-                      .stretch,
+      // --- CUERPO: Navegador de fecha + Lista de avisos ---
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Navegador de fecha (anterior / hoy / siguiente).
+            _buildDateNavigator(),
+            const SizedBox(height: 25),
+
+            // Título de la sección de avisos.
+            Row(
               children: [
-                // --- SECCIÓN NAVEGACIÓN DE FECHA ---
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(
-                        vertical: 15,
-                        horizontal: 10,
-                      ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius:
-                        BorderRadius.circular(
-                          15,
-                        ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors
-                            .black
-                            .withOpacity(
-                              0.05,
-                            ),
-                        blurRadius: 10,
-                        offset:
-                            const Offset(
-                              0,
-                              4,
-                            ),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment:
-                        MainAxisAlignment
-                            .spaceBetween,
-                    children: [
-                      IconButton(
-                        icon: Icon(
-                          Icons
-                              .arrow_back_ios,
-                          color:
-                              primaryDark,
-                          size: 20,
-                        ),
-                        onPressed:
-                            _irAlDiaAnterior,
-                      ),
-                      Column(
-                        children: [
-                          Text(
-                            _fechaHeaderFormatted,
-                            style: TextStyle(
-                              fontSize:
-                                  14,
-                              color: Colors
-                                  .grey[600],
-                              fontWeight:
-                                  FontWeight
-                                      .w500,
-                            ),
-                          ),
-                          Text(
-                            _esHoy()
-                                ? "Hoy"
-                                : DateFormat(
-                                    'd MMM',
-                                    'es_ES',
-                                  ).format(
-                                    _fechaSeleccionada,
-                                  ),
-                            style: TextStyle(
-                              fontSize:
-                                  28,
-                              fontWeight:
-                                  FontWeight
-                                      .bold,
-                              color:
-                                  primaryDark,
-                            ),
-                          ),
-                        ],
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          Icons
-                              .arrow_forward_ios,
-                          color:
-                              primaryDark,
-                          size: 20,
-                        ),
-                        onPressed:
-                            _irAlDiaSiguiente,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(
-                  height: 25,
-                ),
-
-                Row(
-                  children: [
-                    Icon(
-                      Icons.campaign,
-                      color:
-                          primaryDark,
-                      size: 28,
-                    ),
-                    const SizedBox(
-                      width: 8,
-                    ),
-                    Text(
-                      "Avisos Importantes",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight:
-                            FontWeight
-                                .w800,
-                        color:
-                            primaryDark,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(
-                  height: 15,
-                ),
-
-                FutureBuilder<
-                  List<Aviso>
-                >(
-                  future: _avisoService
-                      .getAvisosPorFecha(
-                        _fechaSeleccionada,
-                        token!,
-                      ),
-                  builder: (context, snapshot) {
-                    if (snapshot
-                            .connectionState ==
-                        ConnectionState
-                            .waiting) {
-                      return Center(
-                        child: Padding(
-                          padding:
-                              const EdgeInsets.all(
-                                20.0,
-                              ),
-                          child: CircularProgressIndicator(
-                            color:
-                                primaryDark,
-                          ),
-                        ),
-                      );
-                    } else if (snapshot
-                        .hasError) {
-                      return _buildErrorState(
-                        snapshot.error
-                            .toString(),
-                      );
-                    } else if (!snapshot
-                            .hasData ||
-                        snapshot
-                            .data!
-                            .isEmpty) {
-                      return _buildEmptyAvisosState();
-                    } else {
-                      final avisos =
-                          snapshot
-                              .data!;
-                      return ListView.builder(
-                        shrinkWrap:
-                            true,
-                        physics:
-                            const NeverScrollableScrollPhysics(),
-                        itemCount:
-                            avisos
-                                .length,
-                        itemBuilder:
-                            (
-                              context,
-                              index,
-                            ) {
-                              return _buildAvisoCard(
-                                avisos[index],
-                              );
-                            },
-                      );
-                    }
-                  },
-                ),
-
-                const SizedBox(
-                  height: 100,
+                Icon(Icons.campaign, color: AppColors.primaryDark, size: 28),
+                const SizedBox(width: 8),
+                Text(
+                  "Avisos Importantes",
+                  style: Theme.of(context).textTheme.headlineSmall,
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: 15),
 
-          if (_isFabMenuOpen)
-            GestureDetector(
-              onTap: () => setState(
-                () => _isFabMenuOpen =
-                    false,
+            // Lista de avisos del día (FutureBuilder).
+            _buildAvisosList(token),
+
+            // Espacio extra al final para que el FAB no tape contenido.
+            const SizedBox(height: 80),
+          ],
+        ),
+      ),
+
+      // --- FAB SIMPLIFICADO ---
+      // Solo muestra el botón "Crear Aviso" para Presidente/Admin.
+      // Las acciones de Reservar y Reportar Avería están ahora en sus tabs.
+      floatingActionButton: canCreateAvisos
+          ? FloatingActionButton.extended(
+              heroTag: null,
+              onPressed: () => _mostrarFormularioCrearAviso(
+                user.username,
+                token,
               ),
-              child: Container(
-                color: Colors.black
-                    .withOpacity(0.6),
-              ), // Fondo más oscuro al abrir menú
-            ),
-          Positioned(
-            bottom: 16.0,
-            right: 16.0,
-            child:
-                _buildTwitterStyleFab(
-                  isVecinoMember,
-                  isPresident,
-                  isAdmin,
-                  user.username,
-                  token,
-                ),
+              icon: const Icon(Icons.campaign),
+              label: const Text("Nuevo Aviso"),
+            )
+          : null,
+    );
+  }
+
+  // =========================================================================
+  // WIDGETS EXTRAÍDOS — Componentes del build principal
+  // =========================================================================
+
+  /// Badge con el número de incidencias pendientes.
+  /// Al pulsarlo, navega a la tab de incidencias usando GoRouter.
+  Widget _buildIncidenciasBadge(String token) {
+    return IconButton(
+      icon: Badge(
+        isLabelVisible: _numeroIncidencias > 0,
+        label: Text(
+          '$_numeroIncidencias',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        child: const Icon(
+          Icons.priority_high,
+          color: AppColors.accent,
+          size: 28,
+        ),
+      ),
+      onPressed: () {
+        // Navegamos a la tab de incidencias.
+        context.go('/incidencias');
+      },
+    );
+  }
+
+  /// Navegador de fecha con flechas izquierda/derecha y label del día actual.
+  Widget _buildDateNavigator() {
+    return GestureDetector(
+      onHorizontalDragEnd: (details) {
+        if (details.primaryVelocity! < 0) {
+          _irAlDiaSiguiente(); // Swipe a la izquierda -> siguiente día
+        } else if (details.primaryVelocity! > 0) {
+          _irAlDiaAnterior(); // Swipe a la derecha -> día anterior
+        }
+      },
+      child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_ios,
+                color: AppColors.primaryDark, size: 20),
+            onPressed: _irAlDiaAnterior,
+          ),
+          Column(
+            children: [
+              Text(
+                _fechaHeaderFormatted,
+                style: AppTypography.dateNavigatorLabel,
+              ),
+              Text(
+                _esHoy()
+                    ? "Hoy"
+                    : DateFormat('d MMM', 'es_ES').format(_fechaSeleccionada),
+                style: AppTypography.dateNavigatorDay,
+              ),
+            ],
+          ),
+          IconButton(
+            icon: const Icon(Icons.arrow_forward_ios,
+                color: AppColors.primaryDark, size: 20),
+            onPressed: _irAlDiaSiguiente,
+          ),
+        ],
+      ),
       ),
     );
   }
 
+  /// Lista de avisos del día seleccionado usando FutureBuilder.
+  Widget _buildAvisosList(String token) {
+    return FutureBuilder<List<Aviso>>(
+      future: _avisoService.getAvisosPorFecha(_fechaSeleccionada, token),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: CircularProgressIndicator(color: AppColors.primaryDark),
+            ),
+          );
+        } else if (snapshot.hasError) {
+          // Usamos el widget reutilizable del Design System.
+          return ErrorStateWidget(
+            message: snapshot.error.toString(),
+            onRetry: () => setState(() {}),
+          );
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          // Usamos el widget reutilizable del Design System.
+          return EmptyStateWidget(
+            icon: Icons.task_alt,
+            iconColor: AppColors.success,
+            title: "¡Todo al día!",
+            subtitle:
+                "No hay avisos para el día ${DateFormat('d MMM', 'es_ES').format(_fechaSeleccionada)}.",
+          );
+        } else {
+          final avisos = snapshot.data!;
+          return ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: avisos.length,
+            itemBuilder: (context, index) => TweenAnimationBuilder(
+              tween: Tween<double>(begin: 0, end: 1),
+              duration: Duration(milliseconds: 300 + (index * 100)),
+              curve: Curves.easeOutQuart,
+              builder: (context, value, child) {
+                return Transform.translate(
+                  offset: Offset(0, 30 * (1 - value)),
+                  child: Opacity(
+                    opacity: value,
+                    child: child,
+                  ),
+                );
+              },
+              child: _buildAvisoCard(avisos[index]),
+            ),
+          );
+        }
+      },
+    );
+  }
+
+  /// Tarjeta individual de un aviso.
   Widget _buildAvisoCard(Aviso aviso) {
     return Card(
-      elevation: 3,
-      margin: const EdgeInsets.only(
-        bottom: 15,
-      ),
-      shadowColor: Colors.black
-          .withOpacity(0.2),
-      shape: RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.circular(15),
-        side: BorderSide(
-          color: Colors.grey.shade200,
-          width: 1,
-        ), // Borde sutil
-      ),
-      color: Colors.white,
       child: Padding(
-        padding: const EdgeInsets.all(
-          18.0,
-        ),
+        padding: const EdgeInsets.all(18.0),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment:
-                  MainAxisAlignment
-                      .spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                // Título del aviso.
                 Expanded(
                   child: Text(
                     aviso.titulo,
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight:
-                          FontWeight
-                              .bold,
-                      color:
-                          primaryDark,
-                    ),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: AppColors.primaryDark,
+                        ),
                   ),
                 ),
-                if (aviso
-                        .creadorUsername !=
-                    null)
+                // Badge con el username del creador.
+                if (aviso.creadorUsername != null)
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color:
-                          primaryLight,
-                      borderRadius:
-                          BorderRadius.circular(
-                            10,
-                          ),
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       "@${aviso.creadorUsername}",
                       style: TextStyle(
                         fontSize: 11,
-                        color:
-                            primaryDark,
-                        fontWeight:
-                            FontWeight
-                                .w600,
+                        color: AppColors.primaryDark,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
               ],
             ),
-            const Divider(
-              height: 20,
-              thickness: 0.5,
-            ),
+            const Divider(height: 20, thickness: 0.5),
+            // Descripción del aviso.
             Text(
               aviso.descripcion,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[800],
-                height: 1.5,
-              ),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
             ),
           ],
         ),
       ),
     );
-  }
-
-  Widget _buildEmptyAvisosState() {
-    return Container(
-      padding:
-          const EdgeInsets.symmetric(
-            vertical: 40,
-            horizontal: 20,
-          ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(15),
-        border: Border.all(
-          color: Colors.grey.shade200,
-        ),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            Icons.task_alt,
-            size: 60,
-            color:
-                Colors.green.shade300,
-          ),
-          const SizedBox(height: 15),
-          Text(
-            "¡Todo al día!",
-            style: TextStyle(
-              fontWeight:
-                  FontWeight.bold,
-              fontSize: 18,
-              color: primaryDark,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            "No hay avisos para el día ${DateFormat('d MMM', 'es_ES').format(_fechaSeleccionada)}.",
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.grey,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildErrorState(
-    String error,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        borderRadius:
-            BorderRadius.circular(15),
-        border: Border.all(
-          color: Colors.red.shade200,
-        ),
-      ),
-      child: Column(
-        children: [
-          const Icon(
-            Icons.error_outline,
-            size: 40,
-            color: Colors.red,
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            "Error al cargar avisos",
-            style: TextStyle(
-              fontWeight:
-                  FontWeight.bold,
-              color: Colors.red,
-            ),
-          ),
-          Text(
-            error,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.redAccent,
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 10),
-          TextButton.icon(
-            onPressed: () =>
-                setState(() {}),
-            icon: const Icon(
-              Icons.refresh,
-            ),
-            label: const Text(
-              "Reintentar",
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTwitterStyleFab(
-    bool isMember,
-    bool isPresident,
-    bool isAdmin,
-    String username,
-    String token,
-  ) {
-    return Column(
-      mainAxisAlignment:
-          MainAxisAlignment.end,
-      crossAxisAlignment:
-          CrossAxisAlignment.end,
-      children: [
-        if (_isFabMenuOpen) ...[
-          if (isMember)
-            _buildFabMenuItem(
-              icon: Icons
-                  .chat_bubble_outline,
-              label:
-                  "Nuevo mensaje foro",
-              color: Colors.deepPurple,
-              onTap: () {},
-            ),
-          const SizedBox(height: 15),
-          if (isMember)
-            _buildFabMenuItem(
-              icon:
-                  Icons.event_available,
-              label: "Reservar zona",
-              color: Colors.orange,
-              onTap: () {
-                setState(() => _isFabMenuOpen = false);
-                if (_comunidadIdActual != null) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ReservaEspaciosScreen(comunidadId: _comunidadIdActual!),
-                    ),
-                  );
-                }
-              },
-            ),
-          const SizedBox(height: 15),
-          if (isMember)
-            _buildFabMenuItem(
-              icon: Icons.build,
-              label: "Reportar Avería",
-              color: Colors.blueGrey,
-              onTap: () {
-                if (_comunidadIdActual !=
-                    null) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          CrearIncidenciaPage(
-                            comunidadId:
-                                _comunidadIdActual!,
-                          ),
-                    ),
-                  );
-                } else {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(
-                    SnackBar(
-                      content: const Text(
-                        'Aún cargando datos... Inténtalo de nuevo.',
-                      ),
-                      backgroundColor:
-                          accentColor,
-                    ),
-                  );
-                }
-              },
-            ),
-          const SizedBox(height: 15),
-          if (isPresident ||
-              isAdmin) ...[
-            const Divider(indent: 100),
-            _buildFabMenuItem(
-              icon: Icons.campaign,
-              label: "Crear Aviso",
-              color: Colors.redAccent,
-              onTap: () =>
-                  _mostrarFormularioCrearAviso(
-                    username,
-                    token,
-                  ),
-            ),
-            const SizedBox(height: 15),
-          ],
-        ],
-        FloatingActionButton(
-          onPressed: () {
-            if (!isMember) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      const UserPage(),
-                ),
-              );
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    "Primero debes crear o unirte a una comunidad.",
-                  ),
-                ),
-              );
-            } else {
-              setState(
-                () => _isFabMenuOpen =
-                    !_isFabMenuOpen,
-              );
-            }
-          },
-          backgroundColor: primaryDark,
-          foregroundColor: Colors.white,
-          elevation: 6,
-          child: AnimatedRotation(
-            duration: const Duration(
-              milliseconds: 200,
-            ),
-            turns: _isFabMenuOpen
-                ? 0.125
-                : 0,
-            child: const Icon(
-              Icons.add,
-              size: 30,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFabMenuItem({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding:
-              const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 8,
-              ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius:
-                BorderRadius.circular(
-                  12,
-                ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black
-                    .withOpacity(0.15),
-                blurRadius: 8,
-                offset: const Offset(
-                  0,
-                  3,
-                ),
-              ),
-            ],
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontWeight:
-                  FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
-        ),
-        const SizedBox(width: 15),
-        FloatingActionButton.small(
-          heroTag: label,
-          onPressed: () {
-            setState(
-              () => _isFabMenuOpen =
-                  false,
-            );
-            onTap();
-          },
-          backgroundColor: color,
-          foregroundColor: Colors.white,
-          elevation: 4,
-          child: Icon(icon, size: 22),
-        ),
-      ],
-    );
-  }
-
-  void _manejarOpcionesPerfil(
-    String value,
-  ) {
-    switch (value) {
-      case 'perfil':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-                const UserPage(),
-          ),
-        );
-        break;
-      case 'comunidad':
-        if (_comunidadIdActual !=
-            null) {
-          final userProvider =
-              Provider.of<UserProvider>(
-                context,
-                listen: false,
-              );
-          bool isPresident =
-              (userProvider.user?.rol ==
-              'PRESIDENTE');
-
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  MiembrosComunidadScreen(
-                    comunidadId:
-                        _comunidadIdActual!,
-                    tokenJwt:
-                        userProvider
-                            .token!,
-                    isPresidente:
-                        isPresident,
-                  ),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Cargando datos de comunidad...',
-              ),
-            ),
-          );
-        }
-        break;
-      case 'reservas':
-        if (_comunidadIdActual != null) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ListaReservasScreen(comunidadId: _comunidadIdActual!),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Cargando datos de comunidad...')),
-          );
-        }
-        break;
-      case 'logout':
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-                const LoginPage(),
-          ),
-          (route) => false,
-        );
-        break;
-      default:
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
-          SnackBar(
-            content: Text(
-              "Opción $value (Próximamente)...",
-            ),
-          ),
-        );
-    }
   }
 }

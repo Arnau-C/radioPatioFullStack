@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:frontend/models/user.dart';
-import 'package:frontend/pages/login_page.dart';
 import 'package:frontend/providers/super_admin_provider.dart';
 import 'package:frontend/utils/validators.dart';
 import 'package:provider/provider.dart';
@@ -34,11 +34,7 @@ class SuperAdminPage extends StatelessWidget {
             // Botón para cerrar sesión.
             IconButton(
               onPressed: () {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginPage()),
-                  (route) => false,
-                );
+                context.go('/login');
               },
               icon: const Icon(Icons.logout),
               tooltip: "Cerrar Sesión",
@@ -147,6 +143,7 @@ class SuperAdminPage extends StatelessWidget {
         // Botón flotante para añadir un nuevo usuario.
         floatingActionButton: Builder(
           builder: (context) => FloatingActionButton(
+            heroTag: null,
             onPressed: () => _showCreateUserForm(context),
             backgroundColor: Colors.black87,
             child: const Icon(Icons.person_add, color: Colors.white),
@@ -263,7 +260,7 @@ class _CreateUserFormState extends State<_CreateUserForm> {
             const SizedBox(height: 10),
             // Dropdown para seleccionar el rol del nuevo usuario.
             DropdownButtonFormField<String>(
-              value: _rolSeleccionado,
+              initialValue: _rolSeleccionado,
               items: const [
                 DropdownMenuItem(value: 'USER', child: Text("Usuario (USER)")),
                 DropdownMenuItem(

@@ -61,7 +61,7 @@ class _MyTextFieldState extends State<MyTextField> {
           // Estilos Base
           enabledBorder: OutlineInputBorder(
             borderSide: BorderSide(
-              color: Colors.white.withOpacity(0.5),
+              color: Colors.white.withValues(alpha: 0.5),
               width: 0.5,
             ),
             borderRadius: BorderRadius.circular(12),
@@ -91,7 +91,7 @@ class _MyTextFieldState extends State<MyTextField> {
             fontSize: 12,
           ),
 
-          fillColor: Colors.white.withOpacity(0.15),
+          fillColor: Colors.white.withValues(alpha: 0.15),
           filled: true,
           hintText: widget.hintText,
           prefixIcon: widget.prefixIcon != null 

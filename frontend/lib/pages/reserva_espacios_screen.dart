@@ -164,7 +164,7 @@ class _ReservaEspaciosScreenState extends State<ReservaEspaciosScreen> {
             DropdownButtonFormField<Recurso>(
               decoration: const InputDecoration(border: OutlineInputBorder()),
               hint: const Text('Ej: Pista de Pádel'),
-              value: _recursoSeleccionado,
+              initialValue: _recursoSeleccionado,
               items: _recursos.map((r) => DropdownMenuItem(value: r, child: Text(r.nombre))).toList(),
               onChanged: _onRecursoChanged,
             ),

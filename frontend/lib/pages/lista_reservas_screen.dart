@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:frontend/models/recurso.dart';
 import 'package:frontend/models/reserva.dart';
 import 'package:frontend/providers/user_provider.dart';
@@ -108,12 +109,23 @@ class _ListaReservasScreenState extends State<ListaReservasScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final userProv = Provider.of<UserProvider>(context, listen: false);
+    final isPresidenteOrAdmin = userProv.user?.rol == 'PRESIDENTE' || userProv.user?.rol == 'SUPER_ADMIN';
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         title: const Text('Comunidad: Todas las Reservas', style: TextStyle(color: Colors.white, fontSize: 18)),
         backgroundColor: primaryDark,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          if (isPresidenteOrAdmin)
+            IconButton(
+              icon: const Icon(Icons.settings),
+              tooltip: "Gestión de Espacios (Panel Presidente)",
+              onPressed: () => context.push('/presidente'),
+            ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -134,6 +146,13 @@ class _ListaReservasScreenState extends State<ListaReservasScreen> {
                 ),
               ],
             ),
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: null,
+        onPressed: () => context.push('/reservas/nueva'),
+        icon: const Icon(Icons.add),
+        label: const Text("Reservar Zona"),
+        backgroundColor: accentColor,
+      ),
     );
   }
 
@@ -144,7 +163,7 @@ class _ListaReservasScreenState extends State<ListaReservasScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             offset: const Offset(0, 4),
             blurRadius: 5,
           )
@@ -245,7 +264,7 @@ class _ListaReservasScreenState extends State<ListaReservasScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: accentColor.withOpacity(0.1),
+                    color: accentColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: accentColor)
                   ),
