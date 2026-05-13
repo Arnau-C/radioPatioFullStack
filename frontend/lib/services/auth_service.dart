@@ -77,7 +77,7 @@ class AuthService {
     late http.Response response;
     try {
       response = await http
-          .post(
+          .put(
             url,
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({

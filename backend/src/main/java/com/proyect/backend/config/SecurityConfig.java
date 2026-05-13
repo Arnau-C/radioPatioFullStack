@@ -39,7 +39,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Rutas de auth con AntPathRequestMatcher explícito para evitar
                 // ambigüedades del MvcRequestMatcher en Spring Security 6.x
-                .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.POST, "/api/auth/registro")).permitAll()
+                .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.PUT,  "/api/auth/registro")).permitAll()
                 .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.POST, "/api/auth/login")).permitAll()
                 .requestMatchers(AntPathRequestMatcher.antMatcher("/api/auth/**")).permitAll()
                 .requestMatchers(AntPathRequestMatcher.antMatcher("/api/comunidades/**")).permitAll()
