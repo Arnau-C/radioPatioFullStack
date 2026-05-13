@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:frontend/models/user.dart';
 import 'package:frontend/utils/api_client.dart';
 import 'package:http/http.dart' as http;
@@ -108,26 +109,27 @@ class AuthService {
   }
 
   /// Extrae el mensaje de error del cuerpo de respuesta del backend.
-  /// Soporta tanto `{"error": "..."}` (GlobalException) como `{"message": "..."}` (Spring default).
+  /// Soporta {"error":}, {"message":} y {"detail":}. Si no puede parsear,
+  /// devuelve el body crudo para que el Snackbar muestre el error real.
   String _extractError(String body) {
+    // Siempre imprimimos el body crudo en consola para debugging.
+    debugPrint('[AuthService] Error body: $body');
     try {
       final data = jsonDecode(body);
       if (data is Map) {
-        // GlobalException devuelve {"error": "..."}
         if (data.containsKey('error') && data['error'] is String) {
           return data['error'] as String;
         }
-        // Spring Boot por defecto devuelve {"message": "..."}
         if (data.containsKey('message') && data['message'] is String) {
           return data['message'] as String;
         }
-        // Spring Boot 3 ProblemDetail devuelve {"detail": "..."}
         if (data.containsKey('detail') && data['detail'] is String) {
           return data['detail'] as String;
         }
       }
     } catch (_) {}
-    return 'Error inesperado del servidor';
+    // Fallback: body crudo (truncado a 200 chars para que quepa en un Snackbar)
+    return body.length > 200 ? body.substring(0, 200) : body;
   }
 
   Future<void> logout() async {
