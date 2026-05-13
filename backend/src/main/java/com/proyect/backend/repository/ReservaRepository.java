@@ -20,6 +20,18 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
                                @Param("fechaInicio") LocalDateTime fechaInicio, 
                                @Param("fechaFin") LocalDateTime fechaFin);
 
+    // Reservas activas de un usuario en un recurso dentro de un día concreto
+    // Se compara por rango de LocalDateTime (inicio del día — inicio del día siguiente)
+    @Query("SELECT r FROM Reserva r WHERE r.recurso.id = :recursoId " +
+           "AND r.usuario.username = :username " +
+           "AND r.estado = 'ACTIVA' " +
+           "AND r.fechaInicio >= :inicioDia AND r.fechaInicio < :finDia")
+    List<Reserva> findReservasDeUsuarioEnDia(
+            @Param("recursoId") Long recursoId,
+            @Param("username") String username,
+            @Param("inicioDia") LocalDateTime inicioDia,
+            @Param("finDia") LocalDateTime finDia);
+
     // Obtener todas las reservas de un recurso específico
     List<Reserva> findByRecursoId(Long recursoId);
 

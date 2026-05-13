@@ -20,11 +20,16 @@ class _ListaReservasScreenState extends State<ListaReservasScreen> {
   final ReservaService _reservaService = ReservaService();
   final RecursoService _recursoService = RecursoService();
 
+  // Lista completa tal como llega del backend (nunca se filtra por fecha)
+  List<Reserva> _reservasCompletas = [];
+  // Vista base según el toggle (activas o todo el historial)
   List<Reserva> _todasLasReservas = [];
+  // Resultado final tras aplicar filtros de recurso y fecha
   List<Reserva> _reservasFiltradas = [];
   List<Recurso> _recursos = [];
 
   bool _isLoading = true;
+  bool _verHistorial = false;
 
   // Filtros
   Recurso? _recursoFiltro;
@@ -53,7 +58,8 @@ class _ListaReservasScreenState extends State<ListaReservasScreen> {
       if (mounted) {
         setState(() {
           _recursos = recursos;
-          _todasLasReservas = _limpiarReservasPasadas(reservas);
+          _reservasCompletas = reservas;
+          _todasLasReservas = _verHistorial ? reservas : _soloActivas(reservas);
           _reservasFiltradas = List.from(_todasLasReservas);
           _isLoading = false;
         });
@@ -66,10 +72,19 @@ class _ListaReservasScreenState extends State<ListaReservasScreen> {
     }
   }
 
-  // Si queremos mostrar solo las activas a futuro (opcional, aunque es mejor experiencia)
-  List<Reserva> _limpiarReservasPasadas(List<Reserva> reservas) {
+  List<Reserva> _soloActivas(List<Reserva> reservas) {
     final now = DateTime.now();
     return reservas.where((r) => r.estado == 'ACTIVA' && r.fechaFin.isAfter(now)).toList();
+  }
+
+  void _cambiarVista(bool verHistorial) {
+    setState(() {
+      _verHistorial = verHistorial;
+      _recursoFiltro = null;
+      _fechaFiltro = null;
+      _todasLasReservas = verHistorial ? _reservasCompletas : _soloActivas(_reservasCompletas);
+      _reservasFiltradas = List.from(_todasLasReservas);
+    });
   }
 
   void _aplicarFiltros() {
@@ -107,6 +122,8 @@ class _ListaReservasScreenState extends State<ListaReservasScreen> {
     });
   }
 
+  bool _esPasada(Reserva r) => r.fechaFin.isBefore(DateTime.now());
+
   @override
   Widget build(BuildContext context) {
     final userProv = Provider.of<UserProvider>(context, listen: false);
@@ -131,10 +148,53 @@ class _ListaReservasScreenState extends State<ListaReservasScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
+                // Toggle Próximas / Historial
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(
+                        value: false,
+                        label: Text('Próximas'),
+                        icon: Icon(Icons.upcoming),
+                      ),
+                      ButtonSegment(
+                        value: true,
+                        label: Text('Historial'),
+                        icon: Icon(Icons.history),
+                      ),
+                    ],
+                    selected: {_verHistorial},
+                    onSelectionChanged: (s) => _cambiarVista(s.first),
+                    style: ButtonStyle(
+                      iconSize: WidgetStateProperty.all(16),
+                    ),
+                  ),
+                ),
+
                 _buildPanelFiltros(),
+
                 Expanded(
                   child: _reservasFiltradas.isEmpty
-                      ? const Center(child: Text('No hay reservas próximas en este espacio/día.'))
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _verHistorial ? Icons.history_toggle_off : Icons.event_available,
+                                size: 48,
+                                color: Colors.grey.shade400,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                _verHistorial
+                                    ? 'No hay reservas en el historial.'
+                                    : 'No hay reservas próximas.',
+                                style: TextStyle(color: Colors.grey.shade600, fontSize: 15),
+                              ),
+                            ],
+                          ),
+                        )
                       : ListView.builder(
                           padding: const EdgeInsets.all(12),
                           itemCount: _reservasFiltradas.length,
@@ -185,7 +245,7 @@ class _ListaReservasScreenState extends State<ListaReservasScreen> {
                     border: OutlineInputBorder(),
                     contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 0)
                   ),
-                  value: _recursoFiltro,
+                  initialValue: _recursoFiltro,
                   items: _recursos.map((r) => DropdownMenuItem(value: r, child: Text(r.nombre, overflow: TextOverflow.ellipsis))).toList(),
                   onChanged: (val) {
                     _recursoFiltro = val;
@@ -200,7 +260,9 @@ class _ListaReservasScreenState extends State<ListaReservasScreen> {
                     final picked = await showDatePicker(
                       context: context,
                       initialDate: _fechaFiltro ?? DateTime.now(),
-                      firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                      firstDate: _verHistorial
+                          ? DateTime.now().subtract(const Duration(days: 365))
+                          : DateTime.now().subtract(const Duration(days: 30)),
                       lastDate: DateTime.now().add(const Duration(days: 180)),
                     );
                     if (picked != null) {
@@ -244,56 +306,85 @@ class _ListaReservasScreenState extends State<ListaReservasScreen> {
   }
 
   Widget _buildReservaCard(Reserva reserva) {
+    final pasada = _esPasada(reserva);
     String fechaInicioFormat = DateFormat('dd MMM yyyy, HH:mm', 'es_ES').format(reserva.fechaInicio);
     String horaFinFormat = DateFormat('HH:mm', 'es_ES').format(reserva.fechaFin);
-    
-    // Si la reserva dura varios dias
+
     if (reserva.fechaInicio.day != reserva.fechaFin.day) {
       horaFinFormat = DateFormat('dd MMM yyyy', 'es_ES').format(reserva.fechaFin);
     }
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 15),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: accentColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: accentColor)
+    final Color espacioColor = pasada ? Colors.grey : accentColor;
+
+    return Opacity(
+      opacity: pasada ? 0.65 : 1.0,
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 15),
+        elevation: pasada ? 0 : 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Badge del espacio
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: espacioColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: espacioColor),
+                    ),
+                    child: Text(
+                      reserva.recursoNombre ?? 'Espacio',
+                      style: TextStyle(color: espacioColor, fontWeight: FontWeight.bold, fontSize: 12),
+                    ),
                   ),
-                  child: Text(
-                    reserva.recursoNombre ?? 'Espacio',
-                    style: TextStyle(color: accentColor, fontWeight: FontWeight.bold, fontSize: 12),
+                  Row(
+                    children: [
+                      // Badge "Pasada" en modo historial
+                      if (pasada) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'Pasada',
+                            style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(
+                        '@${reserva.usuarioUsername}',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+                      ),
+                    ],
                   ),
-                ),
-                Text(
-                  '@${reserva.usuarioUsername}',
-                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade700),
-                )
-              ],
-            ),
-            const SizedBox(height: 15),
-            Row(
-              children: [
-                Icon(Icons.access_time_filled, color: primaryDark, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  '$fechaInicioFormat  a  $horaFinFormat',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                )
-              ],
-            )
-          ],
+                ],
+              ),
+              const SizedBox(height: 15),
+              Row(
+                children: [
+                  Icon(Icons.access_time_filled, color: pasada ? Colors.grey : primaryDark, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    '$fechaInicioFormat  a  $horaFinFormat',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: pasada ? Colors.grey.shade600 : Colors.black,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

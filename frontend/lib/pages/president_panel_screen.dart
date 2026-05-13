@@ -173,6 +173,25 @@ class _PresidentPanelScreenState extends State<PresidentPanelScreen> {
     );
   }
 
+  Widget _buildChip({required IconData icon, required String label, required Color color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
   void _eliminarRecurso(int recursoId) async {
     final token = Provider.of<UserProvider>(context, listen: false).token;
     final messenger = ScaffoldMessenger.of(context);
@@ -208,17 +227,66 @@ class _PresidentPanelScreenState extends State<PresidentPanelScreen> {
                             itemCount: _recursos.length,
                             itemBuilder: (context, index) {
                               final recurso = _recursos[index];
+                              final esPorHoras = recurso.tipoReserva == 'POR_HORAS';
                               return Card(
-                                child: ListTile(
-                                  leading: Icon(
-                                    recurso.tipoReserva == 'POR_HORAS' ? Icons.access_time : Icons.calendar_today,
-                                    color: accentColor,
-                                  ),
-                                  title: Text(recurso.nombre, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  subtitle: Text(recurso.descripcion ?? 'Sin descripción'),
-                                  trailing: IconButton(
-                                    icon: const Icon(Icons.delete, color: Colors.red),
-                                    onPressed: () => _eliminarRecurso(recurso.id),
+                                margin: const EdgeInsets.only(bottom: 10),
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      // Icono del tipo de reserva
+                                      Icon(
+                                        esPorHoras ? Icons.access_time : Icons.calendar_today,
+                                        color: accentColor,
+                                        size: 32,
+                                      ),
+                                      const SizedBox(width: 14),
+
+                                      // Nombre, descripción y chips de configuración
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              recurso.nombre,
+                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                            ),
+                                            if ((recurso.descripcion ?? '').isNotEmpty) ...[
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                recurso.descripcion!,
+                                                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                                              ),
+                                            ],
+                                            const SizedBox(height: 8),
+                                            Wrap(
+                                              spacing: 6,
+                                              children: [
+                                                _buildChip(
+                                                  icon: esPorHoras ? Icons.access_time : Icons.date_range,
+                                                  label: esPorHoras ? 'Por horas' : 'Por días',
+                                                  color: primaryDark,
+                                                ),
+                                                if (esPorHoras)
+                                                  _buildChip(
+                                                    icon: Icons.hourglass_top,
+                                                    label: 'Límite: ${recurso.maxHorasReserva}h/día',
+                                                    color: accentColor,
+                                                  ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+
+                                      // Botón eliminar
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                        onPressed: () => _eliminarRecurso(recurso.id),
+                                        tooltip: 'Eliminar espacio',
+                                      ),
+                                    ],
                                   ),
                                 ),
                               );

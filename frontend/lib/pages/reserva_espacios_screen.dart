@@ -92,13 +92,25 @@ class _ReservaEspaciosScreenState extends State<ReservaEspaciosScreen> {
 
   bool _estaHoraOcupada(DateTime horaAComprobar) {
     for (var r in _reservasExistentes) {
-      // Si la hora a comprobar está entre el inicio (incluido) y el fin (excluido) de alguna reserva
       if ((horaAComprobar.isAtSameMomentAs(r.fechaInicio) || horaAComprobar.isAfter(r.fechaInicio)) &&
           horaAComprobar.isBefore(r.fechaFin)) {
         return true;
       }
     }
     return false;
+  }
+
+  /// Horas que el usuario [username] ya tiene reservadas para el recurso
+  /// seleccionado en el día [_fechaSeleccionada]. Cada reserva POR_HORAS
+  /// ocupa exactamente 1 hora, así que cuenta = horas usadas.
+  int _horasReservadasHoyPorMi(String username) {
+    return _reservasExistentes
+        .where((r) =>
+            r.usuarioUsername == username &&
+            r.fechaInicio.year  == _fechaSeleccionada.year &&
+            r.fechaInicio.month == _fechaSeleccionada.month &&
+            r.fechaInicio.day   == _fechaSeleccionada.day)
+        .length;
   }
 
   bool _estanDiasOcupados(DateTime inicio, DateTime fin) {
@@ -186,10 +198,17 @@ class _ReservaEspaciosScreenState extends State<ReservaEspaciosScreen> {
   }
 
   Widget _buildFormularioPorHoras() {
+    final myUsername =
+        Provider.of<UserProvider>(context, listen: false).user?.username ?? '';
+    final int maxHoras = _recursoSeleccionado!.maxHorasReserva;
+    final int horasUsadas = _horasReservadasHoyPorMi(myUsername);
+    final bool cuotaAgotada = horasUsadas >= maxHoras;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("2. Selecciona el Día", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const Text("2. Selecciona el Día",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         const SizedBox(height: 10),
         InkWell(
           onTap: () async {
@@ -199,50 +218,125 @@ class _ReservaEspaciosScreenState extends State<ReservaEspaciosScreen> {
               firstDate: DateTime.now(),
               lastDate: DateTime.now().add(const Duration(days: 90)),
             );
-            if (picked != null) {
-              setState(() => _fechaSeleccionada = picked);
-            }
+            if (picked != null) setState(() => _fechaSeleccionada = picked);
           },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
-            decoration: BoxDecoration(border: Border.all(color: Colors.grey), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(10)),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(DateFormat('EEEE, d MMMM yyyy', 'es_ES').format(_fechaSeleccionada), style: const TextStyle(fontSize: 16)),
+                Text(
+                    DateFormat('EEEE, d MMMM yyyy', 'es_ES')
+                        .format(_fechaSeleccionada),
+                    style: const TextStyle(fontSize: 16)),
                 Icon(Icons.calendar_month, color: primaryDark),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 30),
-        const Text("3. Selecciona la Hora (Tramos de 1 hora)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const SizedBox(height: 20),
+
+        // Banner de cuota diaria (visible desde la primera reserva del día)
+        if (horasUsadas > 0)
+          Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: cuotaAgotada
+                  ? Colors.orange.shade50
+                  : Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                  color: cuotaAgotada
+                      ? Colors.orange.shade300
+                      : Colors.blue.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  cuotaAgotada ? Icons.block : Icons.hourglass_top,
+                  size: 18,
+                  color: cuotaAgotada ? Colors.orange.shade800 : Colors.blue.shade700,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  cuotaAgotada
+                      ? 'Has alcanzado tu cuota diaria ($maxHoras h) en este espacio.'
+                      : 'Cuota diaria: $horasUsadas/$maxHoras h usadas hoy.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: cuotaAgotada
+                        ? Colors.orange.shade900
+                        : Colors.blue.shade800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+        const Text("3. Selecciona la Hora (Tramos de 1 hora)",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         const SizedBox(height: 10),
         Wrap(
           spacing: 10,
           runSpacing: 10,
-          children: List.generate(14, (index) { // Desde las 09:00 hasta las 22:00
-            int hora = index + 9;
-            DateTime timeSlot = DateTime(_fechaSeleccionada.year, _fechaSeleccionada.month, _fechaSeleccionada.day, hora);
-            bool isPast = timeSlot.isBefore(DateTime.now());
-            bool isOccupied = _estaHoraOcupada(timeSlot);
-            bool isAvailable = !isPast && !isOccupied;
+          children: List.generate(14, (index) {
+            // Slots de 09:00 a 22:00
+            final int hora = index + 9;
+            final DateTime timeSlot = DateTime(_fechaSeleccionada.year,
+                _fechaSeleccionada.month, _fechaSeleccionada.day, hora);
+            final bool isPast     = timeSlot.isBefore(DateTime.now());
+            final bool isOccupied = _estaHoraOcupada(timeSlot);
+            // Bloqueado por cuota: libre en el espacio pero el usuario agotó su cuota
+            final bool isQuotaBlocked = !isPast && !isOccupied && cuotaAgotada;
+            final bool isAvailable    = !isPast && !isOccupied && !cuotaAgotada;
+
+            // Colores según estado
+            final Color bgColor = isAvailable
+                ? Colors.green.shade100
+                : isQuotaBlocked
+                    ? Colors.orange.shade100
+                    : isPast
+                        ? Colors.grey.shade200
+                        : Colors.red.shade100;
+            final Color fgColor = isAvailable
+                ? Colors.green.shade900
+                : isQuotaBlocked
+                    ? Colors.orange.shade900
+                    : isPast
+                        ? Colors.grey.shade600
+                        : Colors.red.shade900;
+            final String label = isOccupied
+                ? 'Ocupado'
+                : isPast
+                    ? 'Pasado'
+                    : isQuotaBlocked
+                        ? 'Cuota'
+                        : 'Libre';
 
             return Material(
-              color: isAvailable ? Colors.green.shade100 : Colors.red.shade100,
+              color: bgColor,
               borderRadius: BorderRadius.circular(8),
               child: InkWell(
-                onTap: isAvailable ? () {
-                  _realizarReserva(timeSlot, timeSlot.add(const Duration(hours: 1)));
-                } : null,
+                onTap: isAvailable
+                    ? () => _realizarReserva(
+                        timeSlot, timeSlot.add(const Duration(hours: 1)))
+                    : null,
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
                   width: 80,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   child: Column(
                     children: [
-                      Text('$hora:00', style: TextStyle(fontWeight: FontWeight.bold, color: isAvailable ? Colors.green.shade900 : Colors.red.shade900)),
-                      Text(isOccupied ? 'Ocupado' : (isPast ? 'Pasado' : 'Libre'), style: TextStyle(fontSize: 10, color: isAvailable ? Colors.green.shade700 : Colors.red.shade700)),
+                      Text('$hora:00',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, color: fgColor)),
+                      Text(label,
+                          style: TextStyle(fontSize: 10, color: fgColor)),
                     ],
                   ),
                 ),
@@ -264,6 +358,7 @@ class _ReservaEspaciosScreenState extends State<ReservaEspaciosScreen> {
           icon: const Icon(Icons.date_range),
           label: Text(_fechaInicioSeleccionada == null ? 'Seleccionar Rango de Días' : '${DateFormat('dd/MM').format(_fechaInicioSeleccionada!)}  al  ${DateFormat('dd/MM').format(_fechaFinSeleccionada!)}'),
           onPressed: () async {
+            final messenger = ScaffoldMessenger.of(context);
             final picked = await showDateRangePicker(
               context: context,
               firstDate: DateTime.now(),
@@ -271,7 +366,7 @@ class _ReservaEspaciosScreenState extends State<ReservaEspaciosScreen> {
             );
             if (picked != null) {
               if (_estanDiasOcupados(picked.start, picked.end)) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hay fechas ocupadas en ese rango.'), backgroundColor: Colors.red));
+                messenger.showSnackBar(const SnackBar(content: Text('Hay fechas ocupadas en ese rango.'), backgroundColor: Colors.red));
               } else {
                 setState(() {
                   _fechaInicioSeleccionada = picked.start;
