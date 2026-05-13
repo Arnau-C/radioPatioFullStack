@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:frontend/models/aviso.dart';
@@ -23,13 +24,14 @@ class AvisoService {
       );
 
       if (response.statusCode == 200) {
-        List<dynamic> body = jsonDecode(response.body);
+        List<dynamic> body = jsonDecode(utf8.decode(response.bodyBytes));
         return body.map((dynamic item) => Aviso.fromJson(item)).toList();
       } else {
-        throw Exception('Error 403: No tienes permiso o el token expiró');
+        debugPrint('[AvisoService] Error ${response.statusCode}: ${response.body}');
+        throw Exception('HTTP ${response.statusCode}: ${response.body}');
       }
     } catch (e) {
-      throw Exception('Error de conexión al obtener avisos: $e');
+      throw Exception('Error al obtener avisos: $e');
     }
   }
 
