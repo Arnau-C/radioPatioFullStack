@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:frontend/models/user.dart';
@@ -56,35 +57,11 @@ class AuthService {
     );
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(
-        response.body,
-      );
-      await _storage.write(
-        key: 'jwt_token',
-        value: data['token'],
-      );
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      await _storage.write(key: 'jwt_token', value: data['token']);
       return data;
     } else {
-      // Lanza un error con el mensaje del servidor o uno genérico.
-      String errorMessage =
-          "Error al iniciar sesión";
-      try {
-        final errorData = jsonDecode(
-          response.body,
-        );
-        if (errorData is Map &&
-            errorData.containsKey(
-              'message',
-            )) {
-          errorMessage =
-              errorData['message'];
-        } else {
-          errorMessage = response.body;
-        }
-      } catch (_) {
-        errorMessage = response.body;
-      }
-      throw Exception(errorMessage);
+      throw Exception(_extractError(response.body));
     }
   }
 
@@ -96,51 +73,61 @@ class AuthService {
       '${ApiClient.baseUrl}/auth/registro',
     );
 
-    final response = await http.post(
-      url,
-      headers: {
-        'Content-Type':
-            'application/json',
-      },
-      body: jsonEncode({
-        'nombre': user.nombre,
-        'apellidos': user.apellidos,
-        'email': user.email,
-        'username': user.username,
-        'password': password,
-      }),
-    );
+    late http.Response response;
+    try {
+      response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'nombre': user.nombre,
+              'apellidos': user.apellidos,
+              'email': user.email,
+              'username': user.username,
+              'password': password,
+            }),
+          )
+          .timeout(const Duration(seconds: 20));
+    } on TimeoutException {
+      throw Exception(
+        'La conexión tardó demasiado. El servidor puede estar iniciando. Inténtalo de nuevo.',
+      );
+    } on SocketException {
+      throw Exception(
+        'Sin conexión. Comprueba tu red e inténtalo de nuevo.',
+      );
+    }
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(
-        response.body,
-      );
-      await _storage.write(
-        key: 'jwt_token',
-        value: data['token'],
-      );
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      await _storage.write(key: 'jwt_token', value: data['token']);
       return data;
     } else {
-      String errorMessage =
-          "Error durante el registro";
-      try {
-        final errorData = jsonDecode(
-          response.body,
-        );
-        if (errorData is Map &&
-            errorData.containsKey(
-              'message',
-            )) {
-          errorMessage =
-              errorData['message'];
-        } else {
-          errorMessage = response.body;
-        }
-      } catch (_) {
-        errorMessage = response.body;
-      }
-      throw Exception(errorMessage);
+      throw Exception(_extractError(response.body));
     }
+  }
+
+  /// Extrae el mensaje de error del cuerpo de respuesta del backend.
+  /// Soporta tanto `{"error": "..."}` (GlobalException) como `{"message": "..."}` (Spring default).
+  String _extractError(String body) {
+    try {
+      final data = jsonDecode(body);
+      if (data is Map) {
+        // GlobalException devuelve {"error": "..."}
+        if (data.containsKey('error') && data['error'] is String) {
+          return data['error'] as String;
+        }
+        // Spring Boot por defecto devuelve {"message": "..."}
+        if (data.containsKey('message') && data['message'] is String) {
+          return data['message'] as String;
+        }
+        // Spring Boot 3 ProblemDetail devuelve {"detail": "..."}
+        if (data.containsKey('detail') && data['detail'] is String) {
+          return data['detail'] as String;
+        }
+      }
+    } catch (_) {}
+    return 'Error inesperado del servidor';
   }
 
   Future<void> logout() async {

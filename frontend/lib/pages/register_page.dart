@@ -9,6 +9,7 @@ import 'package:frontend/ui/glass/glass_page_scaffold.dart';
 import 'package:frontend/ui/inputs/radio_patio_text_field.dart';
 import 'package:frontend/ui/buttons/radio_patio_button.dart';
 import 'package:frontend/ui/feedback/radio_patio_dialog.dart';
+import 'package:frontend/ui/feedback/radio_patio_snackbar.dart';
 
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/utils/validators.dart';
@@ -128,14 +129,13 @@ class _RegisterPageState extends State<RegisterPage> {
   ///
   /// 1. Valida el formulario localmente.
   /// 2. Llama al AuthProvider para registrar.
-  /// 3. Muestra diálogo de éxito y vuelve al Login.
+  /// 3. Si falla → Snackbar rojo con el mensaje de error.
+  /// 4. Si funciona → diálogo de éxito y vuelta al Login.
   Future<void> _handleRegister() async {
-    // Validación local de todos los campos.
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    // Llama al método de registro del AuthProvider.
     final userData = await _authProvider.register(
       nombre: _nombreController.text,
       apellidos: _apellidosController.text,
@@ -144,20 +144,27 @@ class _RegisterPageState extends State<RegisterPage> {
       password: _passwordController.text,
     );
 
-    // Si el registro fue exitoso y el widget sigue visible...
-    if (userData != null && mounted) {
-      // Mostramos diálogo de éxito usando el componente del Design System.
-      await RadioPatioDialog.success(
-        context,
-        title: '¡Registro completado!',
-        message: _authProvider.successMessage ?? 'Ya puedes iniciar sesión.',
-      );
+    if (!mounted) return;
 
-      // Volvemos a la página de Login.
-      if (mounted) {
-        _authProvider.clearMessages();
-        context.pop();
-      }
+    if (userData == null) {
+      // El AuthProvider ya capturó la excepción y guardó el mensaje.
+      final errorMsg =
+          _authProvider.errorMessage ?? 'Error desconocido al registrar';
+      _authProvider.clearMessages();
+      RadioPatioSnackbar.error(context, errorMsg);
+      return;
+    }
+
+    // Éxito — mostramos diálogo y volvemos al Login.
+    await RadioPatioDialog.success(
+      context,
+      title: '¡Registro completado!',
+      message: '¡Ya puedes iniciar sesión!',
+    );
+
+    if (mounted) {
+      _authProvider.clearMessages();
+      context.pop();
     }
   }
 
@@ -265,17 +272,6 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                       ),
                       const SizedBox(height: 20),
-
-                      // --- Mensaje de error del servidor ---
-                      if (provider.errorMessage != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: Text(
-                            provider.errorMessage!,
-                            style: AppTypography.errorText,
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
 
                       // --- Botón principal de registro ---
                       RadioPatioButton(
