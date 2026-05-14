@@ -78,6 +78,9 @@ public class Usuario implements UserDetails{
     @Builder.Default
     private boolean permisoCrearReservas = false;
 
+    @Builder.Default
+    private boolean permisoGestionarReservas = false;
+
     @OneToMany(mappedBy = "usuario")
     @ToString.Exclude  // Evita que toString() entre en bucle infinito
     @JsonIgnore // Evita ciclos infinitos en la serialización JSON
