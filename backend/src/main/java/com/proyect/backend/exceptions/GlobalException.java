@@ -4,9 +4,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -33,6 +35,13 @@ public class GlobalException {
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, String>> handleStateException(IllegalStateException e) {
         return error(e.getMessage(), HttpStatus.FORBIDDEN);
+    }
+
+    // 500 — errores de BD no previstos (columna faltante, etc.) — devuelve el mensaje real para diagnosticar
+    @ExceptionHandler({JpaSystemException.class, DataAccessException.class})
+    public ResponseEntity<Map<String, String>> handleJpaException(Exception e) {
+        String msg = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
+        return error("Error de base de datos: " + msg, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     // 409 — violación de clave única en BD
