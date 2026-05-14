@@ -55,10 +55,13 @@ public class Usuario implements UserDetails{
     private String rol; // 'ADMIN', 'USER', etc.
 
     @Builder.Default
-    private int intentosFallidos = 0; // Para contar los errores de login.
+    private int intentosFallidos = 0;
 
     @Builder.Default
-    private boolean cuentaBloqueada = false; // Para saber si está bloqueado.
+    private boolean cuentaBloqueada = false;
+
+    @Builder.Default
+    private boolean permisoCrearAvisos = false;
 
     @OneToMany(mappedBy = "usuario")
     @ToString.Exclude  // Evita que toString() entre en bucle infinito

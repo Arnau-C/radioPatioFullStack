@@ -39,6 +39,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/auth/registro").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/error").permitAll()
                 .requestMatchers("/api/comunidades/**").permitAll()
                 .requestMatchers("/api/foros/**").permitAll()
                 .requestMatchers("/api/superadmin/**").hasAuthority("SUPER_ADMIN")
