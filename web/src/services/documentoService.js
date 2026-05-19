@@ -12,12 +12,12 @@ const getHeaders = (isMultipart = false) => {
 };
 
 const documentoService = {
-    getCarpetas: async () => {
-        const res = await axios.get(`${API_URL}/carpetas`, {
-            headers: getHeaders()
-        });
-        return res.data;
-    },
+    getCarpetas: async (comunidadNombre) => {
+    const res = await axios.get(`${API_URL}/carpetas/${comunidadNombre}`, {
+        headers: getHeaders()
+    });
+    return res.data;
+},
 
     getDocumentosByCarpeta: async (carpetaId) => {
         const res = await axios.get(`${API_URL}/carpeta/${carpetaId}`, {
