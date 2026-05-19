@@ -1,8 +1,8 @@
 import axios from 'axios';
 
-const API_URL = 'https://radiopatiofullstackbackend.onrender.com/api/auth/documentos';
+// 1. CORRECCIÓN DEL 404: Fuera el '/auth'. La ruta correcta es '/api/documentos'
+const API_URL = 'https://radiopatiofullstackbackend.onrender.com/api/documentos';
 
-// Función auxiliar para no repetir código en cada petición (¡Buenas prácticas!)
 const getHeaders = (isMultipart = false) => {
     const user = JSON.parse(localStorage.getItem('user'));
     return {
@@ -12,7 +12,6 @@ const getHeaders = (isMultipart = false) => {
 };
 
 const documentoService = {
-    // 1. Ya no hace falta pasar la comunidad, el backend lo saca del Token JWT
     getCarpetas: async () => {
         const res = await axios.get(`${API_URL}/carpetas`, {
             headers: getHeaders()
@@ -27,7 +26,6 @@ const documentoService = {
         return res.data;
     },
 
-    // 2. Solo enviamos el nombre, la comunidad la asocia el backend por seguridad
     crearCarpeta: async (nombre) => {
         const res = await axios.post(`${API_URL}/carpetas`, { nombre }, {
             headers: getHeaders()
@@ -35,7 +33,6 @@ const documentoService = {
         return res.data;
     },
 
-    // 3. Eliminamos el envío del 'username', el backend lo saca del JWT
     subirDocumento: async (file, carpetaId) => {
         const formData = new FormData();
         formData.append('file', file);
