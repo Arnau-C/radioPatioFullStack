@@ -19,7 +19,7 @@ const DocumentosPage = () => {
     const [nuevoNombreCarpeta, setNuevoNombreCarpeta] = useState('');
     const [archivoASubir, setArchivoASubir] = useState(null);
 
-    // NUEVOS ESTADOS PARA MOVER ARCHIVOS
+    // ESTADOS PARA MOVER ARCHIVOS
     const [showModalMover, setShowModalMover] = useState(false);
     const [documentoAMover, setDocumentoAMover] = useState(null);
     const [carpetaDestinoId, setCarpetaDestinoId] = useState('');
@@ -30,10 +30,12 @@ const DocumentosPage = () => {
 
     const cargarDatosIniciales = async () => {
         try {
+            // Aún pedimos el detalle para poder mostrar el nombre de tu bloque en el título (UI)
             const detalle = await comunidadService.getDetalle(user.username);
             setComunidadNombre(detalle.nombre); 
             
-            const docsCarpetas = await documentoService.getCarpetas(detalle.nombre);
+            // ¡MAGIA! Ya no le pasamos el detalle.nombre, el backend lo sabe por el JWT
+            const docsCarpetas = await documentoService.getCarpetas();
             setCarpetas(docsCarpetas || []);
             if (docsCarpetas && docsCarpetas.length > 0) {
                 seleccionarCarpeta(docsCarpetas[0]);
@@ -58,7 +60,8 @@ const DocumentosPage = () => {
     const handleCrearCarpeta = async (e) => {
         e.preventDefault();
         try {
-            await documentoService.crearCarpeta(nuevoNombreCarpeta, comunidadNombre);
+            // Ya no pasamos la comunidadNombre
+            await documentoService.crearCarpeta(nuevoNombreCarpeta);
             setNuevoNombreCarpeta('');
             setShowModalCarpeta(false);
             cargarDatosIniciales();
@@ -71,7 +74,8 @@ const DocumentosPage = () => {
         e.preventDefault();
         if (!archivoASubir || !carpetaSeleccionada) return;
         try {
-            await documentoService.subirDocumento(archivoASubir, user.username, carpetaSeleccionada.id);
+            // Ya no pasamos user.username, el Backend es seguro y lo extrae solo
+            await documentoService.subirDocumento(archivoASubir, carpetaSeleccionada.id);
             setShowModalSubir(false);
             setArchivoASubir(null);
             seleccionarCarpeta(carpetaSeleccionada); 
@@ -100,19 +104,16 @@ const DocumentosPage = () => {
         }
     };
 
-    // NUEVO: Borrar documento
     const handleBorrarDocumento = async (documentoId) => {
         if (!window.confirm("¿Estás seguro de que deseas eliminar este documento permanentemente?")) return;
         try {
             await documentoService.borrarDocumento(documentoId);
-            // Recargamos la carpeta actual
             seleccionarCarpeta(carpetaSeleccionada);
         } catch (error) {
             alert("Error al borrar el documento");
         }
     };
 
-    // NUEVO: Preparar y abrir modal para mover
     const abrirModalMover = (doc) => {
         setDocumentoAMover(doc);
         const carpetasDisponibles = carpetas.filter(c => c.id !== carpetaSeleccionada?.id);
@@ -124,7 +125,6 @@ const DocumentosPage = () => {
         setShowModalMover(true);
     };
 
-    // NUEVO: Confirmar el movimiento
     const handleMoverDocumento = async (e) => {
         e.preventDefault();
         if (!documentoAMover || !carpetaDestinoId) return;
@@ -132,7 +132,6 @@ const DocumentosPage = () => {
             await documentoService.moverDocumento(documentoAMover.id, carpetaDestinoId);
             setShowModalMover(false);
             setDocumentoAMover(null);
-            // Recargamos la carpeta actual para que desaparezca de la lista visualmente
             seleccionarCarpeta(carpetaSeleccionada);
         } catch (error) {
             alert("Error al mover el documento");
@@ -215,7 +214,6 @@ const DocumentosPage = () => {
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                                     </button>
 
-                                    {/* SOLO PRESIDENTE VE ESTOS BOTONES */}
                                     {esPresidente && (
                                         <>
                                             <button 
@@ -298,7 +296,6 @@ const DocumentosPage = () => {
                             required
                         >
                             <option value="" disabled>Elige una carpeta...</option>
-                            {/* Filtramos para que no salga la carpeta actual */}
                             {carpetas.filter(c => c.id !== carpetaSeleccionada?.id).map(c => (
                                 <option key={c.id} value={c.id}>{c.nombre}</option>
                             ))}
