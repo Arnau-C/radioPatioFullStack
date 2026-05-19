@@ -30,12 +30,10 @@ const DocumentosPage = () => {
 
     const cargarDatosIniciales = async () => {
         try {
-            // Aún pedimos el detalle para poder mostrar el nombre de tu bloque en el título (UI)
             const detalle = await comunidadService.getDetalle(user.username);
-            setComunidadNombre(detalle.nombre); 
-            
-            // ¡MAGIA! Ya no le pasamos el detalle.nombre, el backend lo sabe por el JWT
-            const docsCarpetas = await documentoService.getCarpetas();
+            setComunidadNombre(detalle.nombre);
+            // FIX 1: Pasamos detalle.nombre como path variable → GET /api/documentos/carpetas/{comunidadNombre}
+            const docsCarpetas = await documentoService.getCarpetas(detalle.nombre);
             setCarpetas(docsCarpetas || []);
             if (docsCarpetas && docsCarpetas.length > 0) {
                 seleccionarCarpeta(docsCarpetas[0]);
@@ -60,8 +58,8 @@ const DocumentosPage = () => {
     const handleCrearCarpeta = async (e) => {
         e.preventDefault();
         try {
-            // Ya no pasamos la comunidadNombre
-            await documentoService.crearCarpeta(nuevoNombreCarpeta);
+            // FIX 2: Pasamos comunidadNombre en el body → { nombre, comunidadNombre }
+            await documentoService.crearCarpeta(nuevoNombreCarpeta, comunidadNombre);
             setNuevoNombreCarpeta('');
             setShowModalCarpeta(false);
             cargarDatosIniciales();
@@ -74,8 +72,8 @@ const DocumentosPage = () => {
         e.preventDefault();
         if (!archivoASubir || !carpetaSeleccionada) return;
         try {
-            // Ya no pasamos user.username, el Backend es seguro y lo extrae solo
-            await documentoService.subirDocumento(archivoASubir, carpetaSeleccionada.id);
+            // FIX 3: Pasamos user.username como @RequestParam requerido por el backend
+            await documentoService.subirDocumento(archivoASubir, user.username, carpetaSeleccionada.id);
             setShowModalSubir(false);
             setArchivoASubir(null);
             seleccionarCarpeta(carpetaSeleccionada); 
@@ -199,7 +197,8 @@ const DocumentosPage = () => {
                                 <div className="flex items-center gap-4 overflow-hidden pr-2">
                                     <div className="bg-orange-100 p-3 rounded-xl text-orange-600 font-bold text-xs uppercase flex-shrink-0">PDF</div>
                                     <div className="overflow-hidden">
-                                        <p className="font-bold text-slate-700 text-sm truncate" title={d.nombreOriginal}>{d.nombreOriginal}</p>
+                                        {/* FIX 5: El campo en el modelo Documento se llama 'titulo', no 'nombreOriginal' */}
+                                        <p className="font-bold text-slate-700 text-sm truncate" title={d.titulo}>{d.titulo}</p>
                                         <p className="text-[10px] text-slate-400 font-medium">Subido el {new Date(d.fechaSubida).toLocaleDateString()}</p>
                                     </div>
                                 </div>
@@ -286,7 +285,8 @@ const DocumentosPage = () => {
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
                     <form onSubmit={handleMoverDocumento} className="bg-white p-8 rounded-[2.5rem] w-full max-w-sm shadow-2xl">
                         <h3 className="text-xl font-black mb-2">Mover Archivo</h3>
-                        <p className="text-xs text-slate-500 mb-6 truncate">Archivo: <strong>{documentoAMover?.nombreOriginal}</strong></p>
+                        {/* FIX 5: El campo en el modelo Documento se llama 'titulo', no 'nombreOriginal' */}
+                        <p className="text-xs text-slate-500 mb-6 truncate">Archivo: <strong>{documentoAMover?.titulo}</strong></p>
                         
                         <label className="block text-[10px] font-black uppercase text-slate-400 mb-2 ml-1">Selecciona la carpeta destino</label>
                         <select 

@@ -1,67 +1,71 @@
 import axios from 'axios';
 
-// 1. CORRECCIÓN DEL 404: Fuera el '/auth'. La ruta correcta es '/api/documentos'
 const API_URL = 'https://radiopatiofullstackbackend.onrender.com/api/documentos';
 
-const getHeaders = (isMultipart = false) => {
+const getToken = () => {
     const user = JSON.parse(localStorage.getItem('user'));
-    return {
-        'Authorization': `Bearer ${user?.token}`,
-        ...(isMultipart && { 'Content-Type': 'multipart/form-data' })
-    };
+    return user?.token;
 };
 
 const documentoService = {
+    // FIX 1: getCarpetas requiere comunidadNombre como path variable → /carpetas/{comunidadNombre}
     getCarpetas: async (comunidadNombre) => {
-    const res = await axios.get(`${API_URL}/carpetas/${comunidadNombre}`, {
-        headers: getHeaders()
-    });
-    return res.data;
-},
+        const res = await axios.get(`${API_URL}/carpetas/${comunidadNombre}`, {
+            headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        return res.data;
+    },
 
     getDocumentosByCarpeta: async (carpetaId) => {
         const res = await axios.get(`${API_URL}/carpeta/${carpetaId}`, {
-            headers: getHeaders()
+            headers: { 'Authorization': `Bearer ${getToken()}` }
         });
         return res.data;
     },
 
-    crearCarpeta: async (nombre) => {
-        const res = await axios.post(`${API_URL}/carpetas`, { nombre }, {
-            headers: getHeaders()
+    // FIX 2: crearCarpeta requiere comunidadNombre en el body → { nombre, comunidadNombre }
+    crearCarpeta: async (nombre, comunidadNombre) => {
+        const res = await axios.post(`${API_URL}/carpetas`, { nombre, comunidadNombre }, {
+            headers: { 'Authorization': `Bearer ${getToken()}` }
         });
         return res.data;
     },
 
-    subirDocumento: async (file, carpetaId) => {
+    // FIX 3: subirDocumento requiere username como @RequestParam → formData.append('username', ...)
+    // FIX 4: NO poner 'Content-Type': 'multipart/form-data' manualmente;
+    //   Axios lo añade automáticamente con el boundary correcto al recibir un FormData.
+    subirDocumento: async (file, username, carpetaId) => {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('carpetaId', carpetaId);
-
+        formData.append('username', username);
         const res = await axios.post(`${API_URL}/subir`, formData, {
-            headers: getHeaders(true)
+            headers: {
+                'Authorization': `Bearer ${getToken()}`
+                // Content-Type lo gestiona Axios automáticamente con el boundary correcto
+            }
         });
         return res.data;
     },
 
     borrarCarpeta: async (carpetaId) => {
         const res = await axios.delete(`${API_URL}/carpetas/${carpetaId}`, {
-            headers: getHeaders()
+            headers: { 'Authorization': `Bearer ${getToken()}` }
         });
         return res.data;
     },
 
     verDocumento: async (documentoId) => {
         const res = await axios.get(`${API_URL}/descargar/${documentoId}`, {
-            headers: getHeaders(),
-            responseType: 'blob' 
+            headers: { 'Authorization': `Bearer ${getToken()}` },
+            responseType: 'blob'
         });
         return res.data;
     },
 
     borrarDocumento: async (documentoId) => {
         const res = await axios.delete(`${API_URL}/${documentoId}`, {
-            headers: getHeaders()
+            headers: { 'Authorization': `Bearer ${getToken()}` }
         });
         return res.data;
     },
@@ -70,7 +74,7 @@ const documentoService = {
         const res = await axios.put(`${API_URL}/mover/${documentoId}`, {
             nuevaCarpetaId: parseInt(nuevaCarpetaId) 
         }, {
-            headers: getHeaders()
+            headers: { 'Authorization': `Bearer ${getToken()}` }
         });
         return res.data;
     }
